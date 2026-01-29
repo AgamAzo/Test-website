@@ -12,6 +12,7 @@
         :root {
             --gold: #D4AF37;
             --midnight: #0a0a0b;
+            --slate-luxe: #1c1c1e;
         }
 
         body {
@@ -19,6 +20,7 @@
             background-color: var(--midnight);
             color: white;
             min-height: 100vh;
+            margin: 0;
         }
 
         .serif-font { font-family: 'Cinzel', serif; }
@@ -30,7 +32,7 @@
         }
 
         .luxe-card {
-            background: #1c1c1e;
+            background: var(--slate-luxe);
             border: 1px solid rgba(212, 175, 55, 0.2);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
@@ -39,105 +41,136 @@
             background: linear-gradient(135deg, #BF953F, #AA771C);
             color: black;
             font-weight: 700;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
         }
 
-        .date-divider {
-            border-right: 3px solid var(--gold);
-            padding-right: 1rem;
-            margin: 2rem 0 1rem 0;
+        .btn-gold:active { transform: scale(0.98); }
+
+        .slot-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .slot-btn:not(:disabled):hover {
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        .slot-btn:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+            text-decoration: line-through;
         }
 
         input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(0.8) sepia(1) saturate(5) hue-rotate(5deg);
         }
+
+        .date-header {
+            border-right: 3px solid var(--gold);
+            padding-right: 1rem;
+            margin-top: 2.5rem;
+        }
     </style>
 </head>
 <body class="antialiased">
 
+    <!-- Navigation -->
     <nav class="border-b border-white/5 bg-black/80 sticky top-0 z-50 backdrop-blur-xl">
-        <div class="max-w-6xl mx-auto px-6 h-24 flex justify-between items-center flex-row-reverse">
-            <div class="flex items-center gap-4 flex-row-reverse">
+        <div class="max-w-6xl mx-auto px-6 h-20 flex justify-between items-center flex-row-reverse">
+            <div class="flex items-center gap-3 flex-row-reverse text-right">
                 <svg width="40" height="40" viewBox="0 0 100 100" fill="none">
-                    <circle cx="50" cy="50" r="48" stroke="url(#gold_grad)" stroke-width="2"/>
-                    <path d="M35 30H55C63 30 68 35 68 42C68 49 63 54 55 54H35V70" stroke="url(#gold_grad)" stroke-width="4" stroke-linecap="round"/>
-                    <path d="M45 54L65 70" stroke="url(#gold_grad)" stroke-width="4" stroke-linecap="round"/>
-                    <defs>
-                        <linearGradient id="gold_grad" x1="0" y1="0" x2="100" y2="100">
-                            <stop stop-color="#BF953F"/><stop offset="0.5" stop-color="#FCF6BA"/><stop offset="1" stop-color="#AA771C"/>
-                        </linearGradient>
-                    </defs>
+                    <circle cx="50" cy="50" r="48" stroke="url(#g1)" stroke-width="2"/>
+                    <path d="M35 30H55C63 30 68 35 68 42C68 49 63 54 55 54H35V70 M45 54L65 70" stroke="url(#g1)" stroke-width="4" stroke-linecap="round"/>
+                    <defs><linearGradient id="g1"><stop stop-color="#BF953F"/><stop offset="1" stop-color="#AA771C"/></linearGradient></defs>
                 </svg>
-                <div class="flex flex-col items-end">
+                <div class="flex flex-col">
                     <span class="serif-font text-lg font-bold gold-gradient tracking-widest">PELEG AZOULAY</span>
-                    <span class="text-[8px] text-white/40 tracking-widest uppercase">Elite Management</span>
+                    <span class="text-[8px] text-white/40 uppercase tracking-[0.2em]">Bespoke Studio</span>
                 </div>
             </div>
             <div class="flex gap-4">
-                <button onclick="showSection('booking')" class="text-xs font-bold text-gold">הזמנת תור</button>
-                <button onclick="showSection('admin-login')" class="text-xs font-bold text-white/40">ניהול</button>
+                <button onclick="showSection('booking')" class="text-[10px] font-bold uppercase tracking-widest text-gold">הזמנה</button>
+                <button onclick="showSection('admin-login')" class="text-[10px] font-bold uppercase tracking-widest text-white/30">ניהול</button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-5xl mx-auto px-6 py-12">
-        <section id="section-booking" class="space-y-10">
+    <main class="max-w-4xl mx-auto px-6 py-10">
+        
+        <!-- Booking Section -->
+        <section id="section-booking" class="space-y-12">
             <div class="text-center space-y-4">
-                <h1 class="serif-font text-4xl font-bold gold-gradient">קביעת תור אישי</h1>
-                <p class="text-white/50">בחרי תאריך ושעה נוחים עבורך</p>
+                <h1 class="serif-font text-4xl font-bold gold-gradient">קביעת פגישה</h1>
+                <p class="text-white/40 text-sm">בחרי את המועד המועדף עלייך</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="luxe-card rounded-2xl p-6">
-                    <label class="block text-[10px] text-gold font-bold mb-3 uppercase tracking-widest">1. בחירת תאריך</label>
-                    <input type="date" id="date-picker" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <div class="md:col-span-5 luxe-card rounded-2xl p-6 h-fit">
+                    <label class="block text-[10px] font-bold text-gold uppercase tracking-widest mb-4">1. בחירת תאריך</label>
+                    <input type="date" id="date-picker" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-gold/50">
                 </div>
-                <div class="luxe-card rounded-2xl p-6">
-                    <label class="block text-[10px] text-gold font-bold mb-3 uppercase tracking-widest">2. בחירת שעה</label>
-                    <div id="slots-grid" class="grid grid-cols-2 gap-3"></div>
+
+                <div class="md:col-span-7 luxe-card rounded-2xl p-6">
+                    <label class="block text-[10px] font-bold text-gold uppercase tracking-widest mb-6">2. בחירת שעה</label>
+                    <div id="slots-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <!-- Slots injected here -->
+                    </div>
                 </div>
             </div>
         </section>
 
-        <section id="section-admin-login" class="hidden max-w-md mx-auto py-20">
-            <div class="luxe-card rounded-2xl p-10 text-center space-y-6">
-                <h2 class="serif-font text-2xl gold-gradient">גישת ניהול</h2>
+        <!-- Admin Login -->
+        <section id="section-admin-login" class="hidden max-w-sm mx-auto py-20">
+            <div class="luxe-card rounded-2xl p-8 text-center space-y-8">
+                <h2 class="serif-font text-2xl gold-gradient">גישה למנהל</h2>
                 <form id="admin-login-form" class="space-y-4">
-                    <input type="password" id="admin-password" placeholder="קוד גישה" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center tracking-widest">
-                    <button type="submit" class="w-full btn-gold py-4 rounded-xl">כניסה</button>
+                    <input type="password" id="admin-password" placeholder="קוד כניסה" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center tracking-widest outline-none">
+                    <button type="submit" class="w-full btn-gold py-4 rounded-xl shadow-lg">כניסה למערכת</button>
                 </form>
             </div>
         </section>
 
+        <!-- Admin Dashboard -->
         <section id="section-admin-dashboard" class="hidden space-y-8">
             <div class="flex justify-between items-center border-b border-white/10 pb-6">
-                <h2 class="serif-font text-3xl gold-gradient">יומן תורים</h2>
-                <button onclick="logout()" class="text-xs text-white/40 underline">התנתקות</button>
+                <h2 class="serif-font text-3xl gold-gradient">יומן פגישות</h2>
+                <button onclick="logout()" class="px-4 py-2 border border-white/10 rounded-lg text-[10px] uppercase font-bold text-white/40">התנתקות</button>
             </div>
-            <div id="admin-list-container" class="space-y-8"></div>
+            <div id="admin-list-container" class="space-y-6"></div>
         </section>
     </main>
 
-    <div id="booking-modal" class="fixed inset-0 bg-black/90 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-sm">
-        <div class="bg-[#111] border border-gold/30 rounded-3xl max-w-md w-full p-8 space-y-6">
-            <h3 class="serif-font text-2xl gold-gradient text-center">פרטי הזמנה</h3>
-            <p id="modal-summary" class="text-center text-white/60 text-sm"></p>
+    <!-- Modal -->
+    <div id="booking-modal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] hidden flex items-center justify-center p-6">
+        <div class="bg-[#111] border border-gold/20 rounded-3xl max-w-sm w-full p-8 space-y-8">
+            <div class="text-center space-y-2">
+                <h3 class="serif-font text-2xl gold-gradient">פרטי הפגישה</h3>
+                <p id="modal-summary" class="text-white/40 text-sm"></p>
+            </div>
+            
             <form id="final-booking-form" class="space-y-4">
-                <input type="text" id="user-name" required placeholder="שם מלא" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none text-right">
-                <input type="tel" id="user-phone" required placeholder="מספר טלפון" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none text-right">
-                <button type="submit" class="w-full btn-gold py-4 rounded-xl">אישור סופי</button>
-                <button type="button" onclick="closeModal()" class="w-full text-white/40 text-sm">ביטול</button>
+                <input type="text" id="user-name" required placeholder="שם מלא" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-right outline-none">
+                <input type="tel" id="user-phone" required placeholder="מספר טלפון (בוואטסאפ)" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-right outline-none">
+                <div class="pt-4 space-y-3">
+                    <button type="submit" class="w-full btn-gold py-4 rounded-xl">אישור וקבלת הודעה</button>
+                    <button type="button" onclick="closeModal()" class="w-full text-white/20 text-xs font-bold uppercase">ביטול</button>
+                </div>
             </form>
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-10 right-10 px-6 py-4 rounded-xl bg-white text-black shadow-2xl opacity-0 transition-all duration-500 z-[200]">
-        <span id="toast-text" class="font-bold text-sm"></span>
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-10 left-10 right-10 md:left-auto md:w-80 px-6 py-4 rounded-xl bg-white text-black shadow-2xl translate-y-32 opacity-0 transition-all duration-500 z-[200] flex items-center justify-center text-center font-bold text-sm">
+        <span id="toast-text"></span>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
@@ -155,6 +188,7 @@
             const today = new Date().toISOString().split('T')[0];
             dateInput.value = today;
             dateInput.min = today;
+            dateInput.onchange = renderSlots;
 
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 await signInWithCustomToken(auth, __initial_auth_token);
@@ -165,6 +199,9 @@
             onAuthStateChanged(auth, (user) => {
                 if (user) listenToAppointments();
             });
+
+            // Initial slot render
+            renderSlots();
         };
 
         const listenToAppointments = () => {
@@ -173,7 +210,7 @@
                 appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderSlots();
                 if (isAdmin) renderAdminDashboard();
-            });
+            }, (error) => console.error("Firestore Error:", error));
         };
 
         const renderSlots = () => {
@@ -185,8 +222,8 @@
                 const isTaken = appointments.some(a => a.date === selectedDate && a.time === time);
                 const btn = document.createElement('button');
                 btn.disabled = isTaken;
-                btn.className = `p-4 rounded-xl font-bold border ${isTaken ? 'bg-white/5 text-white/10 border-transparent' : 'border-white/10 text-white hover:border-gold hover:text-gold'}`;
-                btn.innerText = time;
+                btn.className = `slot-btn p-4 rounded-xl text-sm font-bold ${isTaken ? '' : 'text-white'}`;
+                btn.innerHTML = `<div>${time}</div><div class="text-[8px] uppercase tracking-widest mt-1 ${isTaken ? 'text-white/20' : 'text-gold'}">${isTaken ? 'תפוס' : 'פנוי'}</div>`;
                 btn.onclick = () => openModal(time);
                 grid.appendChild(btn);
             });
@@ -204,23 +241,31 @@
 
             const sortedDates = Object.keys(groups).sort((a, b) => new Date(a) - new Date(b));
 
+            if (sortedDates.length === 0) {
+                container.innerHTML = '<div class="text-center py-20 text-white/20 italic">אין פגישות רשומות במערכת</div>';
+                return;
+            }
+
             sortedDates.forEach(date => {
                 const groupDiv = document.createElement('div');
-                groupDiv.className = "space-y-4";
-                const displayDate = new Date(date).toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                groupDiv.innerHTML = `<h3 class="date-divider text-gold font-bold text-sm">${displayDate}</h3><div class="grid grid-cols-1 gap-4" id="group-${date}"></div>`;
+                const d = new Date(date);
+                const dateString = d.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+                
+                groupDiv.innerHTML = `<h3 class="date-header text-gold font-bold text-sm mb-4">${dateString}</h3><div class="grid gap-3" id="g-${date}"></div>`;
                 container.appendChild(groupDiv);
 
-                const list = document.getElementById(`group-${date}`);
+                const list = document.getElementById(`g-${date}`);
                 groups[date].sort((a, b) => a.time.localeCompare(b.time)).forEach(apt => {
                     const card = document.createElement('div');
-                    card.className = "luxe-card p-5 rounded-xl flex justify-between items-center flex-row-reverse";
+                    card.className = "luxe-card p-5 rounded-xl flex justify-between items-center";
                     card.innerHTML = `
+                        <button onclick="deleteApt('${apt.id}')" class="text-white/10 hover:text-red-500 transition-colors p-2">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
                         <div class="text-right">
-                            <h4 class="font-bold text-white">${apt.name}</h4>
-                            <p class="text-white/40 text-xs">${apt.phone} | ${apt.time}</p>
+                            <div class="font-bold text-white">${apt.name}</div>
+                            <div class="text-xs text-white/40">${apt.time} | ${apt.phone}</div>
                         </div>
-                        <button onclick="deleteApt('${apt.id}')" class="text-white/10 hover:text-red-500"><i class="fas fa-trash"></i></button>
                     `;
                     list.appendChild(card);
                 });
@@ -237,7 +282,13 @@
         window.closeModal = () => document.getElementById('booking-modal').classList.add('hidden');
 
         window.deleteApt = async (id) => {
-            if (confirm('למחוק את התור?')) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+            if (!confirm('האם את בטוחה שברצונך למחוק את התור לצמיתות?')) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+                showToast('התור נמחק בהצלחה');
+            } catch (e) {
+                showToast('שגיאה במחיקה');
+            }
         };
 
         window.showSection = (section) => {
@@ -250,8 +301,8 @@
         const showToast = (text) => {
             const t = document.getElementById('toast');
             document.getElementById('toast-text').innerText = text;
-            t.classList.remove('opacity-0');
-            setTimeout(() => t.classList.add('opacity-0'), 3000);
+            t.classList.remove('translate-y-32', 'opacity-0');
+            setTimeout(() => t.classList.add('translate-y-32', 'opacity-0'), 3000);
         };
 
         document.getElementById('final-booking-form').onsubmit = async (e) => {
@@ -259,9 +310,25 @@
             const name = document.getElementById('user-name').value;
             const phone = document.getElementById('user-phone').value;
             const date = document.getElementById('date-picker').value;
-            await setDoc(doc(collection(db, 'artifacts', appId, 'public', 'data', 'appointments')), { name, phone, date, time: selectedTime });
-            closeModal();
-            showToast('התור נשמר בהצלחה');
+
+            try {
+                const docId = `${date}_${selectedTime}`.replace(/-/g, '_');
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', docId), {
+                    name, phone, date, time: selectedTime, timestamp: Date.now()
+                });
+                
+                closeModal();
+                showToast('התור נקבע! שולח הודעה...');
+
+                // Send WhatsApp Notification
+                setTimeout(() => {
+                    const msg = encodeURIComponent(`היי ${name}, נקבעה לך פגישה בתאריך ${date} בשעה ${selectedTime} אצל פלג אזולאי. מחכה לראותך!`);
+                    window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${msg}`, '_blank');
+                }, 1500);
+
+            } catch (err) {
+                showToast('שגיאה בשמירה');
+            }
         };
 
         document.getElementById('admin-login-form').onsubmit = (e) => {
@@ -270,12 +337,12 @@
                 isAdmin = true;
                 showSection('admin-dashboard');
                 renderAdminDashboard();
+                showToast('ברוכה הבאה פלג');
             } else {
                 showToast('קוד שגוי');
             }
         };
 
-        document.getElementById('date-picker').onchange = renderSlots;
         init();
     </script>
 </body>
