@@ -1,214 +1,289 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Peleg Azoulay | Elite Appointments</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600;700&display=swap');
-        :root { --gold: #D4AF37; --midnight: #0a0a0b; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--midnight); color: white; margin: 0; padding: 0; }
-        .serif-font { font-family: 'Cinzel', serif; }
-        .gold-gradient { background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .luxe-card { background: #1c1c1e; border: 1px solid rgba(212, 175, 55, 0.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
-        .btn-gold { background: linear-gradient(135deg, #BF953F, #AA771C); color: black; font-weight: 700; }
-        .slot-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 18px; border-radius: 12px; text-align: center; font-weight: bold; transition: all 0.2s; color: white; border-color: rgba(212, 175, 55, 0.3); cursor: pointer; }
-        .slot-btn.taken { opacity: 0.1; text-decoration: line-through; pointer-events: none; }
-        input[type="date"] { color-scheme: dark; text-align: center; }
-    </style>
-</head>
-<body>
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, collection, doc, setDoc, onSnapshot, 
+  deleteDoc, updateDoc, query 
+} from 'firebase/firestore';
+import { 
+  getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken 
+} from 'firebase/auth';
+import { 
+  Calendar, Clock, Trash2, CheckCircle, CreditCard, 
+  History, Plus, User, Phone, LogOut, X, ChevronRight, MessageCircle
+} from 'lucide-react';
 
-    <nav class="border-b border-white/5 bg-black/80 sticky top-0 z-50 backdrop-blur-xl">
-        <div class="max-w-6xl mx-auto px-6 h-20 flex justify-between items-center flex-row-reverse">
-            <div class="flex items-center gap-3 flex-row-reverse">
-                <div class="w-10 h-10 border border-gold rounded-full flex items-center justify-center text-gold serif-font font-bold">P</div>
-                <div class="serif-font text-sm font-bold gold-gradient tracking-widest leading-none uppercase">PELEG AZOULAY</div>
-            </div>
-            <div class="flex gap-4">
-                <button onclick="showSection('booking')" class="text-[10px] font-bold text-gold uppercase tracking-widest">הזמנה</button>
-                <button onclick="showSection('admin-login')" class="text-[10px] font-bold text-white/20 uppercase tracking-widest">ניהול</button>
-            </div>
+// Firebase Config
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'peleg-elite-pro-v3';
+
+// Constants
+const CUSTOMER_TIME_SLOTS = ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"];
+
+const generateAdminSlots = () => {
+  const slots = [];
+  for (let hour = 8; hour <= 20; hour++) {
+    slots.push(`${hour < 10 ? '0' + hour : hour}:00`);
+    slots.push(`${hour < 10 ? '0' + hour : hour}:30`);
+  }
+  slots.push("21:00");
+  return slots;
+};
+const ADMIN_TIME_SLOTS = generateAdminSlots();
+const ADMIN_PASSWORD = "PelegAzoulayAgamAzoulay";
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState('booking'); 
+  const [appointments, setAppointments] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bookingModal, setBookingModal] = useState(null); 
+  const [adminAddModal, setAdminAddModal] = useState(false);
+  const [formData, setFormData] = useState({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '17:00' });
+  const [toast, setToast] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) { console.error("Auth error", err); }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAppointments(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const sendWhatsApp = (phone, message) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    const finalPhone = cleanPhone.startsWith('0') ? '972' + cleanPhone.substring(1) : cleanPhone;
+    const url = `https://wa.me/${finalPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleBooking = async (isManual = false) => {
+    const name = formData.name;
+    const phone = formData.phone;
+    const date = isManual ? formData.date : selectedDate;
+    const time = isManual ? formData.time : bookingModal;
+
+    if (!name || !phone) return showToast("נא למלא שם וטלפון");
+    
+    const docId = `${date}_${time.replace(':', '')}`.replace(/-/g, '_');
+    
+    try {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', docId), {
+        name, phone, date, time, paid: false, createdAt: Date.now()
+      });
+      
+      showToast("התור נקבע בהצלחה!");
+      
+      // WhatsApp Confirmation Option for Admin or automatic prompt logic
+      if (isManual) {
+        const msg = `היי ${name}, זה אישור לתור שקבענו אצל פלג אזולאי בתאריך ${date} בשעה ${time}. מחכה לך!`;
+        sendWhatsApp(phone, msg);
+      }
+
+      setBookingModal(null);
+      setAdminAddModal(false);
+      setFormData({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '17:00' });
+    } catch (e) { showToast("שגיאה בשמירה"); }
+  };
+
+  const deleteAppointment = async (apt) => {
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', apt.id));
+      showToast("התור נמחק");
+      
+      if (isAdmin) {
+        const msg = `היי ${apt.name}, רציתי לעדכן שהתור שנקבע לתאריך ${apt.date} בשעה ${apt.time} בוטל. לתיאום מחדש מוזמנת ליצור קשר.`;
+        // נותן למנהלת אופציה לשלוח הודעת ביטול
+        if(confirm("התור נמחק. האם לשלוח הודעת ביטול ללקוחה ב-WhatsApp?")) {
+          sendWhatsApp(apt.phone, msg);
+        }
+      }
+    } catch (e) { showToast("שגיאה במחיקה"); }
+  };
+
+  const { upcoming, history } = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const up = []; const hist = [];
+    appointments.forEach(apt => {
+      if (apt.date && apt.date < todayStr) hist.push(apt);
+      else up.push(apt);
+    });
+    return { 
+      upcoming: up.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)), 
+      history: hist.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)) 
+    };
+  }, [appointments]);
+
+  if (loading) return <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center"><div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div></div>;
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0b] text-white p-4 font-sans text-right" dir="rtl">
+      <nav className="max-w-xl mx-auto flex justify-between items-center h-20 border-b border-white/5 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full border border-[#D4AF37] flex items-center justify-center text-[#D4AF37] font-serif font-bold">P</div>
+          <span className="font-serif text-sm tracking-widest font-bold gold-gradient uppercase">PELEG AZOULAY</span>
         </div>
-    </nav>
-
-    <main class="max-w-xl mx-auto px-6 py-8 pb-32">
-        <section id="section-booking" class="space-y-8">
-            <div class="text-center">
-                <h1 class="serif-font text-3xl font-bold gold-gradient uppercase">קביעת תור</h1>
-                <p class="text-white/40 text-[10px] uppercase mt-2 italic">Elite Beauty Studio</p>
-            </div>
-            <div class="luxe-card rounded-[2rem] p-8 space-y-8">
-                <div>
-                    <label class="block text-[10px] text-gold font-bold mb-4 text-right uppercase">1. בחירת תאריך</label>
-                    <input type="date" id="date-picker" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none">
-                </div>
-                <div>
-                    <label class="block text-[10px] text-gold font-bold mb-4 text-right uppercase">2. בחירת שעה</label>
-                    <div id="slots-grid" class="grid grid-cols-2 gap-3"></div>
-                </div>
-            </div>
-        </section>
-
-        <section id="section-admin-login" class="hidden py-10">
-            <div class="luxe-card rounded-[2.5rem] p-10 text-center space-y-6 max-w-sm mx-auto">
-                <h2 class="serif-font text-xl gold-gradient font-bold uppercase tracking-widest">ניהול תורים</h2>
-                <input type="password" id="admin-password" placeholder="קוד גישה" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none">
-                <button onclick="handleLogin()" class="w-full btn-gold py-4 rounded-xl font-bold">כניסה</button>
-            </div>
-        </section>
-
-        <section id="section-admin-dashboard" class="hidden space-y-6">
-            <div class="flex justify-between items-center border-b border-white/10 pb-6">
-                <h2 class="serif-font text-2xl gold-gradient uppercase">ניהול</h2>
-                <button onclick="logout()" class="text-[10px] text-white/30 underline uppercase font-bold">יציאה</button>
-            </div>
-            <div id="admin-list" class="space-y-4 text-right"></div>
-        </section>
-    </main>
-
-    <div id="modal" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-sm">
-        <div class="bg-[#1c1c1e] border border-gold/20 rounded-[2.5rem] w-full max-w-sm p-8 space-y-6">
-            <div class="text-center space-y-2">
-                <h3 class="serif-font text-2xl gold-gradient uppercase">פרטי פגישה</h3>
-                <p id="modal-desc" class="text-white/40 text-xs font-bold"></p>
-            </div>
-            <div class="space-y-4">
-                <input type="text" id="user-name" placeholder="שם מלא" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-right outline-none">
-                <input type="tel" id="user-phone" placeholder="טלפון (וואטסאפ)" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-right outline-none">
-                <button id="book-btn" onclick="processBooking()" class="w-full btn-gold py-5 rounded-2xl shadow-xl mt-4 font-bold uppercase tracking-widest text-sm">אישור סופי</button>
-                <button onclick="closeModal()" class="w-full text-white/20 text-[10px] uppercase font-bold">חזרה</button>
-            </div>
+        <div className="flex gap-4">
+          <button onClick={() => setView('booking')} className={`text-[10px] font-bold uppercase tracking-widest ${view === 'booking' ? 'text-[#D4AF37]' : 'text-white/40'}`}>הזמנה</button>
+          <button onClick={() => setView(isAdmin ? 'admin-dashboard' : 'admin-login')} className={`text-[10px] font-bold uppercase tracking-widest ${view.includes('admin') ? 'text-[#D4AF37]' : 'text-white/40'}`}>ניהול</button>
         </div>
-    </div>
+      </nav>
 
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white text-black px-8 py-4 rounded-full font-bold text-xs opacity-0 transition-all duration-500 z-[200]"></div>
+      <main className="max-w-xl mx-auto">
+        {view === 'booking' && (
+          <div className="space-y-8 animate-in fade-in">
+            <div className="text-center"><h1 className="font-serif text-3xl font-bold gold-gradient uppercase">קביעת תור</h1></div>
+            <div className="bg-[#1c1c1e] rounded-[2.5rem] p-8 border border-white/5 space-y-8">
+              <input type="date" min={new Date().toISOString().split('T')[0]} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-[#D4AF37] text-center font-bold" />
+              <div className="grid grid-cols-2 gap-4">
+                {CUSTOMER_TIME_SLOTS.map(slot => {
+                  const isTaken = appointments.some(a => a.date === selectedDate && a.time === slot);
+                  return (
+                    <button key={slot} disabled={isTaken} onClick={() => setBookingModal(slot)}
+                      className={`p-5 rounded-2xl font-bold border ${isTaken ? 'opacity-10 border-white/5' : 'bg-white/5 border-white/10 hover:border-[#D4AF37]'}`}>
+                      {slot}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        {view === 'admin-login' && (
+          <div className="py-20 flex justify-center">
+            <form onSubmit={(e) => { e.preventDefault(); if(e.target.password.value === ADMIN_PASSWORD) { setIsAdmin(true); setView('admin-dashboard'); } else { showToast("קוד שגוי"); } }} 
+                  className="bg-[#1c1c1e] rounded-[2.5rem] p-10 border border-white/5 w-full max-w-sm space-y-6 text-center shadow-2xl">
+              <h2 className="font-serif text-xl gold-gradient uppercase font-bold">כניסת מנהלת</h2>
+              <input name="password" type="password" placeholder="קוד גישה" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-center outline-none focus:border-[#D4AF37]" autoFocus />
+              <button type="submit" className="w-full bg-gradient-to-l from-[#BF953F] to-[#AA771C] text-black font-black py-4 rounded-xl uppercase tracking-widest">כניסה</button>
+            </form>
+          </div>
+        )}
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'peleg-studio';
+        {view === 'admin-dashboard' && (
+          <div className="space-y-8 animate-in slide-in-from-bottom-4">
+            <div className="flex justify-between items-center bg-[#1c1c1e] p-6 rounded-[2rem] border border-white/5">
+              <h2 className="font-serif text-2xl gold-gradient uppercase">שלום פלג</h2>
+              <div className="flex gap-3">
+                <button onClick={() => setView('history')} className="p-3 bg-white/5 rounded-xl text-white/60"><History size={22}/></button>
+                <button onClick={() => setAdminAddModal(true)} className="p-3 bg-[#D4AF37] rounded-xl text-black font-bold"><Plus size={22}/></button>
+                <button onClick={() => {setIsAdmin(false); setView('booking');}} className="p-3 bg-white/5 rounded-xl text-white/60"><LogOut size={22}/></button>
+              </div>
+            </div>
 
-        const TIMES = ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30"];
-        let appointments = [];
-        let selectedTime = null;
-        let isAdminActive = false;
-
-        const init = () => {
-            const dp = document.getElementById('date-picker');
-            const today = new Date().toLocaleDateString('en-CA');
-            dp.value = today; dp.min = today;
-            dp.onchange = renderSlots;
-
-            // מציג שעות מיד!
-            renderSlots();
-
-            // חיבור ברקע
-            signInAnonymously(auth).then(() => {
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        const q = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
-                        onSnapshot(q, (snapshot) => {
-                            appointments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                            renderSlots();
-                            if(isAdminActive) renderAdmin();
-                        });
-                    }
-                });
-            });
-        };
-
-        const renderSlots = () => {
-            const grid = document.getElementById('slots-grid');
-            const date = document.getElementById('date-picker').value;
-            grid.innerHTML = '';
-            TIMES.forEach(time => {
-                const isTaken = appointments.some(a => a.date === date && a.time === time);
-                const btn = document.createElement('button');
-                btn.className = `slot-btn ${isTaken ? 'taken' : ''}`;
-                btn.innerText = time;
-                if (!isTaken) {
-                    btn.onclick = () => {
-                        selectedTime = time;
-                        document.getElementById('modal-desc').innerText = `${date} בשעה ${time}`;
-                        document.getElementById('modal').classList.remove('hidden');
-                    };
-                }
-                grid.appendChild(btn);
-            });
-        };
-
-        window.processBooking = async () => {
-            const name = document.getElementById('user-name').value;
-            const phone = document.getElementById('user-phone').value;
-            const date = document.getElementById('date-picker').value;
-            if (!name || !phone) return showToast('נא למלא פרטים');
-
-            try {
-                const id = `${date}_${selectedTime}`.replace(/-/g, '_');
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id), {
-                    name, phone, date, time: selectedTime
-                });
-                closeModal();
-                showToast('נקבע בהצלחה!');
-                setTimeout(() => {
-                    const cleanPhone = phone.replace(/\D/g, '').replace(/^0/, '972');
-                    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent('נקבעה פגישה אצל פלג אזולאי בתאריך ' + date + ' בשעה ' + selectedTime)}`, '_blank');
-                }, 1000);
-            } catch(e) { showToast('תקלה בשמירה'); }
-        };
-
-        window.renderAdmin = () => {
-            const list = document.getElementById('admin-list');
-            list.innerHTML = '';
-            appointments.sort((a,b) => a.date.localeCompare(b.date)).forEach(apt => {
-                const div = document.createElement('div');
-                div.className = 'luxe-card p-5 rounded-2xl flex justify-between items-center border-r-4 border-gold';
-                div.innerHTML = `
-                    <div class="text-right flex-1 mr-4">
-                        <div class="font-bold text-sm text-white">${apt.name}</div>
-                        <div class="text-[10px] text-white/40">${apt.date} | ${apt.time}</div>
+            <div className="space-y-6">
+              {Object.entries(upcoming.reduce((acc, a) => ({...acc, [a.date]: [...(acc[a.date]||[]), a]}), {})).map(([date, items]) => (
+                <div key={date} className="space-y-4">
+                  <div className="text-[#D4AF37] text-xs font-bold uppercase tracking-widest pr-2">{date}</div>
+                  {items.map(apt => (
+                    <div key={apt.id} className="bg-[#1c1c1e] p-5 rounded-2xl border-r-4 border-[#D4AF37] flex justify-between items-center">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-xl">{apt.time}</span>
+                          <span className="font-bold">{apt.name}</span>
+                        </div>
+                        <div className="text-xs text-white/30">{apt.phone}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => sendWhatsApp(apt.phone, `היי ${apt.name}, תזכורת לתור שלך אצל פלג אזולאי בתאריך ${apt.date} בשעה ${apt.time}.`)}
+                          className="w-10 h-10 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center"><MessageCircle size={18}/></button>
+                        <button onClick={() => { if(window.confirm(`למחוק?`)) deleteAppointment(apt); }} 
+                          className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center"><Trash2 size={18}/></button>
+                      </div>
                     </div>
-                    <button onclick="deleteApt('${apt.id}')" class="bg-red-500/10 text-red-500 w-10 h-10 rounded-xl flex items-center justify-center">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>`;
-                list.appendChild(div);
-            });
-        };
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-        window.deleteApt = async (id) => {
-            if (confirm('למחוק?')) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
-                showToast('נמחק');
-            }
-        };
+        {view === 'history' && (
+          <div className="space-y-8 animate-in slide-in-from-right-4">
+            <button onClick={() => setView('admin-dashboard')} className="flex items-center gap-2 text-xs font-bold text-white/40"><ChevronRight size={18}/> חזרה</button>
+            <div className="space-y-4">
+              {history.map(apt => (
+                <div key={apt.id} className="bg-[#1c1c1e] p-5 rounded-2xl flex justify-between items-center opacity-70">
+                  <div className="text-right"><div className="text-[10px] text-white/40">{apt.date}</div><div className="font-bold">{apt.name} | {apt.time}</div></div>
+                  <button onClick={() => deleteAppointment(apt)} className="text-white/10 hover:text-red-500"><Trash2 size={18}/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
 
-        window.handleLogin = () => {
-            if (document.getElementById('admin-password').value === 'PelegAzoulayAgamAzoulay') {
-                isAdminActive = true; showSection('admin-dashboard'); renderAdmin();
-            } else showToast('קוד שגוי');
-        };
+      {/* MODAL: CLIENT BOOKING */}
+      {bookingModal && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-xl">
+          <div className="bg-[#1c1c1e] w-full max-w-sm rounded-[3rem] p-10 border border-white/10 space-y-8">
+            <div className="text-center"><h3 className="font-serif text-2xl gold-gradient uppercase">אישור תור</h3></div>
+            <div className="space-y-5">
+              <input placeholder="שם מלא" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-right outline-none" />
+              <input type="tel" placeholder="מספר טלפון" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-right outline-none" />
+            </div>
+            <button onClick={() => handleBooking(false)} className="w-full bg-[#D4AF37] text-black font-black py-5 rounded-2xl">קבעי תור</button>
+            <button onClick={() => setBookingModal(null)} className="w-full text-white/20 text-xs">ביטול</button>
+          </div>
+        </div>
+      )}
 
-        window.showSection = (id) => {
-            ['booking', 'admin-login', 'admin-dashboard'].forEach(s => document.getElementById(`section-${s}`).classList.add('hidden'));
-            document.getElementById(`section-${id}`).classList.remove('hidden');
-        };
-        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
-        window.logout = () => { isAdminActive = false; showSection('booking'); };
-        const showToast = (m) => {
-            const t = document.getElementById('toast'); t.innerText = m; t.style.opacity = 1;
-            setTimeout(() => t.style.opacity = 0, 3000);
-        };
-        init();
-    </script>
-</body>
-</html>
+      {/* MODAL: ADMIN MANUAL ADD */}
+      {adminAddModal && (
+        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-xl">
+          <div className="bg-[#1c1c1e] w-full max-w-sm rounded-[3rem] p-10 border border-[#D4AF37]/40 space-y-6 relative">
+            <button onClick={() => setAdminAddModal(false)} className="absolute top-8 left-8 text-white/30"><X size={24}/></button>
+            <h3 className="text-center font-serif text-2xl gold-gradient uppercase">הוספת תור ידני</h3>
+            <div className="space-y-4">
+              <input placeholder="שם הלקוחה" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-right" />
+              <input placeholder="טלפון" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-right" />
+              <div className="grid grid-cols-2 gap-3">
+                <input type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs" />
+                <select value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs appearance-none">
+                  {ADMIN_TIME_SLOTS.map(t => <option key={t} value={t} className="bg-[#1c1c1e]">{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <button onClick={() => handleBooking(true)} className="w-full bg-[#D4AF37] text-black font-black py-5 rounded-2xl uppercase">שמירה ושליחת הודעה</button>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white text-black px-8 py-4 rounded-full font-black text-xs z-[200]">{toast}</div>}
+
+      <style>{`.gold-gradient { background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }`}</style>
+    </div>
+  );
+}
 
