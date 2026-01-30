@@ -8,194 +8,140 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600;700&display=swap');
-        
-        :root {
-            --gold: #D4AF37;
-            --midnight: #0a0a0b;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--midnight);
-            color: white;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-        }
-
+        :root { --gold: #D4AF37; --midnight: #0a0a0b; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--midnight); color: white; margin: 0; padding: 0; overflow-x: hidden; }
         .serif-font { font-family: 'Cinzel', serif; }
-
-        .gold-gradient {
-            background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .luxe-card {
-            background: #1c1c1e;
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .btn-gold {
-            background: linear-gradient(135deg, #BF953F, #AA771C);
-            color: black;
-            font-weight: 700;
-            transition: all 0.3s ease;
-        }
-
-        .btn-gold:active { transform: scale(0.95); }
-
-        .slot-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-            font-weight: bold;
-            transition: all 0.2s;
-        }
-
-        .slot-btn.taken {
-            opacity: 0.15;
-            text-decoration: line-through;
-            pointer-events: none;
-        }
-
-        .slot-btn.available:active {
-            border-color: var(--gold);
-            color: var(--gold);
-            background: rgba(212, 175, 55, 0.1);
-        }
-
-        input[type="date"] {
-            color-scheme: dark;
-        }
+        .gold-gradient { background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .luxe-card { background: #1c1c1e; border: 1px solid rgba(212, 175, 55, 0.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+        .btn-gold { background: linear-gradient(135deg, #BF953F, #AA771C); color: black; font-weight: 700; }
+        .slot-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); padding: 18px; border-radius: 12px; text-align: center; font-weight: bold; transition: all 0.2s; }
+        .slot-btn.available { color: white; border-color: rgba(212, 175, 55, 0.3); cursor: pointer; }
+        .slot-btn.available:active { background: rgba(212, 175, 55, 0.2); border-color: var(--gold); }
+        .slot-btn.taken { opacity: 0.1; text-decoration: line-through; pointer-events: none; }
+        input[type="date"] { color-scheme: dark; text-align: center; }
     </style>
 </head>
 <body>
 
-    <!-- Header -->
     <nav class="border-b border-white/5 bg-black/80 sticky top-0 z-50 backdrop-blur-xl">
         <div class="max-w-6xl mx-auto px-6 h-20 flex justify-between items-center flex-row-reverse">
             <div class="flex items-center gap-3 flex-row-reverse">
                 <div class="w-10 h-10 border border-gold rounded-full flex items-center justify-center text-gold serif-font font-bold">P</div>
                 <div class="flex flex-col text-right">
-                    <span class="serif-font text-sm font-bold gold-gradient tracking-widest leading-none">PELEG AZOULAY</span>
-                    <span class="text-[8px] text-white/40 uppercase tracking-tighter">Bespoke Studio</span>
+                    <span class="serif-font text-sm font-bold gold-gradient tracking-widest leading-none uppercase">PELEG AZOULAY</span>
                 </div>
             </div>
             <div class="flex gap-4">
-                <button onclick="showSection('booking')" class="text-[10px] font-bold text-gold uppercase">הזמנה</button>
-                <button onclick="showSection('admin-login')" class="text-[10px] font-bold text-white/30 uppercase">ניהול</button>
+                <button onclick="showSection('booking')" class="text-[10px] font-bold text-gold uppercase tracking-widest">הזמנה</button>
+                <button onclick="showSection('admin-login')" class="text-[10px] font-bold text-white/20 uppercase tracking-widest">ניהול</button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-xl mx-auto px-6 py-8 pb-24">
-        
-        <!-- Booking Section -->
+    <main class="max-w-xl mx-auto px-6 py-8 pb-32">
         <section id="section-booking" class="space-y-8">
-            <div class="text-center space-y-2">
-                <h1 class="serif-font text-3xl font-bold gold-gradient">קביעת תור</h1>
-                <p class="text-white/40 text-xs italic">Elite Beauty & Aesthetics</p>
+            <div class="text-center">
+                <h1 class="serif-font text-3xl font-bold gold-gradient uppercase">קביעת תור</h1>
+                <p class="text-white/40 text-[10px] uppercase tracking-widest mt-2 italic">Elite Studio Experience</p>
             </div>
-
-            <div class="luxe-card rounded-3xl p-6 space-y-6">
+            <div class="luxe-card rounded-[2.5rem] p-8 space-y-8">
                 <div>
-                    <label class="block text-[10px] text-gold font-bold mb-3 uppercase tracking-widest text-right">1. בחירת תאריך</label>
-                    <input type="date" id="date-picker" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-right outline-none focus:border-gold/50">
+                    <label class="block text-[10px] text-gold font-bold mb-4 uppercase tracking-widest text-right">1. בחירת תאריך</label>
+                    <input type="date" id="date-picker" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-gold/40">
                 </div>
-                
                 <div>
-                    <label class="block text-[10px] text-gold font-bold mb-3 uppercase tracking-widest text-right">2. בחירת שעה</label>
-                    <div id="slots-grid" class="grid grid-cols-2 gap-3">
-                        <!-- Slots injected here -->
-                    </div>
+                    <label class="block text-[10px] text-gold font-bold mb-4 uppercase tracking-widest text-right">2. שעות פנויות</label>
+                    <div id="slots-grid" class="grid grid-cols-2 gap-3"></div>
                 </div>
             </div>
         </section>
 
-        <!-- Admin Login -->
         <section id="section-admin-login" class="hidden py-10">
-            <div class="luxe-card rounded-3xl p-8 text-center space-y-6">
-                <h2 class="serif-font text-xl gold-gradient">כניסת מנהלת</h2>
+            <div class="luxe-card rounded-[2.5rem] p-10 text-center space-y-6 max-w-sm mx-auto">
+                <h2 class="serif-font text-xl gold-gradient uppercase font-bold">כניסת מנהלת</h2>
                 <input type="password" id="admin-password" placeholder="קוד כניסה" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-center outline-none">
-                <button onclick="handleLogin()" class="w-full btn-gold py-4 rounded-xl">כניסה</button>
+                <button onclick="handleLogin()" class="w-full btn-gold py-4 rounded-xl shadow-lg font-bold">כניסה</button>
             </div>
         </section>
 
-        <!-- Admin Dashboard -->
         <section id="section-admin-dashboard" class="hidden space-y-6">
-            <div class="flex justify-between items-center">
-                <h2 class="serif-font text-2xl gold-gradient">יומן תורים</h2>
-                <button onclick="showSection('booking')" class="text-[10px] text-white/30 underline uppercase font-bold">יציאה</button>
+            <div class="flex justify-between items-center border-b border-white/10 pb-6">
+                <h2 class="serif-font text-2xl gold-gradient uppercase">יומן פגישות</h2>
+                <button onclick="logout()" class="text-[10px] text-white/30 underline uppercase font-bold">יציאה</button>
             </div>
-            <div id="admin-list" class="space-y-4">
-                <!-- Appointments list injected here -->
-            </div>
+            <div id="admin-list" class="space-y-4 text-right"></div>
         </section>
     </main>
 
-    <!-- Modal -->
-    <div id="modal" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-6">
+    <div id="modal" class="fixed inset-0 bg-black/95 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-sm">
         <div class="bg-[#1c1c1e] border border-gold/20 rounded-[2.5rem] w-full max-w-sm p-8 space-y-6">
-            <div class="text-center">
-                <h3 class="serif-font text-2xl gold-gradient">פרטי הפגישה</h3>
-                <p id="modal-desc" class="text-white/40 text-xs mt-2"></p>
+            <div class="text-center space-y-2">
+                <h3 class="serif-font text-2xl gold-gradient uppercase">פרטי פגישה</h3>
+                <p id="modal-desc" class="text-white/40 text-xs font-bold"></p>
             </div>
-            <div class="space-y-3">
+            <div class="space-y-4">
                 <input type="text" id="user-name" placeholder="שם מלא" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-right outline-none">
                 <input type="tel" id="user-phone" placeholder="מספר טלפון (וואטסאפ)" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-right outline-none">
-                <div class="pt-4 flex flex-col gap-3">
-                    <button onclick="processBooking()" class="w-full btn-gold py-4 rounded-xl shadow-lg">אישור וקביעת תור</button>
-                    <button onclick="closeModal()" class="w-full text-white/20 text-[10px] uppercase font-bold">ביטול</button>
-                </div>
+                <button onclick="processBooking()" id="confirm-btn" class="w-full btn-gold py-5 rounded-2xl shadow-xl mt-4 font-bold uppercase tracking-widest text-sm">אישור וקביעת תור</button>
+                <button onclick="closeModal()" class="w-full text-white/20 text-[10px] uppercase font-bold">חזרה</button>
             </div>
         </div>
     </div>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white text-black px-6 py-3 rounded-full font-bold text-xs shadow-2xl opacity-0 transition-opacity z-[200] pointer-events-none"></div>
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white text-black px-8 py-4 rounded-full font-bold text-xs opacity-0 transition-all duration-500 z-[200] shadow-2xl"></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration (Using provided defaults if environment vars missing)
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'peleg-azoulay-luxe';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'peleg-studio';
 
         const TIMES = ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30"];
         let appointments = [];
         let selectedTime = null;
+        let isAdminActive = false;
+        let isUserAuthenticated = false;
 
         const init = async () => {
-            // Set date to today
             const dp = document.getElementById('date-picker');
-            const today = new Date().toISOString().split('T')[0];
-            dp.value = today;
-            dp.min = today;
+            dp.value = new Date().toLocaleDateString('en-CA');
+            dp.min = dp.value;
             dp.onchange = renderSlots;
-
-            // Immediate render even before DB connects
             renderSlots();
 
-            // Connect to Firebase
-            try {
-                await signInAnonymously(auth);
-                const q = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
-                onSnapshot(q, (snapshot) => {
-                    appointments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    renderSlots();
-                    renderAdmin();
+            // מנגנון התחברות עם ניסיונות חוזרים
+            const authenticate = async (retries = 5) => {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        await signInAnonymously(auth);
+                        return true;
+                    } catch (e) {
+                        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+                    }
+                }
+                return false;
+            };
+
+            const connected = await authenticate();
+            if (connected) {
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        isUserAuthenticated = true;
+                        const q = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
+                        onSnapshot(q, (snapshot) => {
+                            appointments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                            renderSlots();
+                            if(isAdminActive) renderAdmin();
+                        }, (err) => console.error("Snapshot error:", err));
+                    }
                 });
-            } catch (e) {
-                console.error("Connection failed", e);
+            } else {
+                showToast("לא מצליח להתחבר למסד הנתונים. נסי לרענן.");
             }
         };
 
@@ -203,102 +149,101 @@
             const grid = document.getElementById('slots-grid');
             const date = document.getElementById('date-picker').value;
             grid.innerHTML = '';
-            
             TIMES.forEach(time => {
                 const isTaken = appointments.some(a => a.date === date && a.time === time);
                 const btn = document.createElement('button');
-                btn.className = `slot-btn ${isTaken ? 'taken' : 'available text-white'}`;
+                btn.className = `slot-btn ${isTaken ? 'taken' : 'available'}`;
                 btn.innerText = time;
-                btn.onclick = () => {
-                    if (isTaken) return;
-                    selectedTime = time;
-                    document.getElementById('modal-desc').innerText = `${date} בשעה ${time}`;
-                    document.getElementById('modal').classList.remove('hidden');
-                };
+                if (!isTaken) {
+                    btn.onclick = () => {
+                        selectedTime = time;
+                        document.getElementById('modal-desc').innerText = `${date} בשעה ${time}`;
+                        document.getElementById('modal').classList.remove('hidden');
+                    };
+                }
                 grid.appendChild(btn);
             });
         };
 
         window.processBooking = async () => {
-            const name = document.getElementById('user-name').value;
-            const phone = document.getElementById('user-phone').value;
+            const name = document.getElementById('user-name').value.trim();
+            const phone = document.getElementById('user-phone').value.trim();
             const date = document.getElementById('date-picker').value;
-            
-            if (!name || !phone) return showToast('נא למלא שם וטלפון');
+            if (!name || !phone) return showToast('נא למלא את כל הפרטים');
+            if (!isUserAuthenticated) return showToast('המתנה לחיבור מאובטח...');
 
-            const id = `${date}_${selectedTime}`.replace(/-/g, '_');
+            const btn = document.getElementById('confirm-btn');
+            btn.disabled = true;
+            btn.innerText = "שומר...";
+
+            const docId = `${date}_${selectedTime}`.replace(/-/g, '_');
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id), {
-                    name, phone, date, time: selectedTime, created: Date.now()
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', docId), {
+                    name, phone, date, time: selectedTime, timestamp: Date.now()
                 });
-
                 closeModal();
-                showToast('התור נקבע! שולח הודעה...');
-
-                // Open WhatsApp
+                showToast('התור נקבע בהצלחה!');
                 setTimeout(() => {
-                    const msg = `היי ${name}, נקבעה לך פגישה בתאריך ${date} בשעה ${selectedTime} אצל פלג אזולאי. מחכה לראותך!`;
-                    window.open(`https://wa.me/972${phone.startsWith('0') ? phone.slice(1) : phone}?text=${encodeURIComponent(msg)}`, '_blank');
-                }, 1500);
+                    const cleanPhone = phone.replace(/\D/g, '').replace(/^0/, '972');
+                    const msg = `היי ${name}, נקבעה לך פגישה בתאריך ${date} בשעה ${selectedTime} אצל פלג אזולאי.`;
+                    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                }, 1000);
             } catch (e) {
-                showToast('תקלה בשמירה. נסי שוב.');
+                console.error(e);
+                showToast('שגיאה בשמירה. ודאי שיש אינטרנט.');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "אישור וקביעת תור";
             }
         };
 
-        const renderAdmin = () => {
+        window.renderAdmin = () => {
             const list = document.getElementById('admin-list');
             list.innerHTML = '';
-            
-            if (appointments.length === 0) {
-                list.innerHTML = '<div class="text-center py-10 text-white/10 italic">אין תורים רשומים</div>';
-                return;
-            }
-
-            appointments.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)).forEach(apt => {
+            const sorted = [...appointments].sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+            sorted.forEach(apt => {
                 const div = document.createElement('div');
-                div.className = 'luxe-card p-5 rounded-2xl flex justify-between items-center';
+                div.className = 'luxe-card p-5 rounded-2xl flex justify-between items-center border-r-4 border-gold';
                 div.innerHTML = `
-                    <button onclick="deleteApt('${apt.id}')" class="text-white/10 hover:text-red-500 p-2"><i class="fas fa-trash-alt"></i></button>
-                    <div class="text-right">
-                        <div class="font-bold text-sm text-gold">${apt.name}</div>
-                        <div class="text-[10px] text-white/40">${apt.date} • ${apt.time} • ${apt.phone}</div>
+                    <div class="text-right flex-1 mr-4">
+                        <div class="font-bold text-white text-sm">${apt.name}</div>
+                        <div class="text-[10px] text-white/40 mt-1">${apt.date} | ${apt.time} | ${apt.phone}</div>
                     </div>
-                `;
+                    <button onclick="deleteApt('${apt.id}')" class="bg-red-500/10 text-red-500 w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>`;
                 list.appendChild(div);
             });
         };
 
         window.deleteApt = async (id) => {
             if (confirm('למחוק את התור לצמיתות?')) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
-                showToast('התור נמחק');
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+                    showToast('התור נמחק');
+                } catch(e) { showToast('תקלה במחיקה'); }
             }
         };
 
         window.handleLogin = () => {
-            const pass = document.getElementById('admin-password').value;
-            if (pass === 'PelegAzoulayAgamAzoulay') {
+            if (document.getElementById('admin-password').value === 'PelegAzoulayAgamAzoulay') {
+                isAdminActive = true;
                 showSection('admin-dashboard');
                 renderAdmin();
-                showToast('שלום פלג');
-            } else {
-                showToast('קוד שגוי');
-            }
+            } else { showToast('קוד שגוי'); }
         };
 
+        window.logout = () => { isAdminActive = false; showSection('booking'); };
         window.showSection = (id) => {
             ['booking', 'admin-login', 'admin-dashboard'].forEach(s => document.getElementById(`section-${s}`).classList.add('hidden'));
             document.getElementById(`section-${id}`).classList.remove('hidden');
         };
-
         window.closeModal = () => document.getElementById('modal').classList.add('hidden');
-
         const showToast = (m) => {
             const t = document.getElementById('toast');
             t.innerText = m; t.style.opacity = 1;
             setTimeout(() => t.style.opacity = 0, 3000);
         };
-
         init();
     </script>
 </body>
