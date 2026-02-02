@@ -9,10 +9,11 @@ import {
 } from 'firebase/auth';
 import { 
   Calendar, Clock, Trash2, CheckCircle, XCircle, 
-  History, Plus, Phone, LogOut, X, ChevronRight, MessageCircle, CreditCard
+  History, Plus, Phone, LogOut, X, ChevronRight, 
+  MessageCircle, CreditCard, User, ShieldCheck, Crown, Briefcase
 } from 'lucide-react';
 
-// Firebase Config
+// Firebase Configuration
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -21,7 +22,6 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'peleg-elite-final-v5
 
 // Constants
 const CUSTOMER_TIME_SLOTS = ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"];
-
 const generateAdminSlots = () => {
   const slots = [];
   for (let hour = 8; hour <= 20; hour++) {
@@ -34,19 +34,24 @@ const generateAdminSlots = () => {
 const ADMIN_TIME_SLOTS = generateAdminSlots();
 const ADMIN_PASSWORD = "PelegAzoulayAgamAzoulay";
 
+// Theme Colors
+const goldColor = "#D4AF37";
+
 export default function App() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('booking'); 
+  const [view, setView] = useState('booking'); // 'booking', 'admin-login', 'admin-dashboard'
+  const [adminSubView, setAdminSubView] = useState('upcoming'); // 'upcoming', 'history'
   const [appointments, setAppointments] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [bookingModal, setBookingModal] = useState(null); 
+  const [bookingModal, setBookingModal] = useState(null);
   const [adminAddModal, setAdminAddModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '17:00' });
   const [toast, setToast] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [adminPassInput, setAdminPassInput] = useState('');
 
-  // Initialize Auth
+  // Authentication
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -55,12 +60,14 @@ export default function App() {
         } else {
           await signInAnonymously(auth);
         }
-      } catch (err) { console.error("Auth error", err); }
+      } catch (err) {
+        console.error("Auth error:", err);
+      }
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      if (u) setLoading(false);
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -92,14 +99,12 @@ export default function App() {
   };
 
   const handleBooking = async (isManual = false) => {
-    const name = formData.name;
-    const phone = formData.phone;
+    const { name, phone } = formData;
     const date = isManual ? formData.date : selectedDate;
-    const time = isManual ? formData.time : bookingModal;
+    const time = isManual ? formData.time : bookingModal.time;
 
     if (!name || !phone) return showToast("נא למלא שם וטלפון");
-    
-    // Create a very specific ID to ensure deletion works perfectly
+
     const docId = `APT_${date}_${time.replace(':', '')}_${Date.now()}`;
     
     try {
@@ -107,33 +112,29 @@ export default function App() {
         name, phone, date, time, paid: false, createdAt: Date.now()
       });
       
-      showToast("התור נרשם ביומן!");
+      showToast("התור נרשם בהצלחה! ✨");
+      const msg = `היי ${name}, נקבע לך תור אצל פלג אזולאי בתאריך ${date} בשעה ${time}. מחכה לך!`;
       
-      const msg = `היי ${name}, זה אישור לתור שקבענו אצל פלג אזולאי בתאריך ${date} בשעה ${time}. מחכה לך!`;
-      
-      // Automatic trigger for WhatsApp
       setTimeout(() => sendWhatsApp(phone, msg), 500);
-
+      
       setBookingModal(null);
       setAdminAddModal(false);
       setFormData({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '17:00' });
-    } catch (e) { showToast("שגיאה בשמירה"); }
+    } catch (e) {
+      showToast("שגיאה בשמירה");
+    }
   };
 
   const deleteAppointment = async (apt) => {
-    if (!apt || !apt.id) return;
+    if (!isAdmin) return;
+    if (!confirm(`האם למחוק את התור של ${apt.name}?`)) return;
+
     try {
       const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appointments', apt.id);
       await deleteDoc(docRef);
-      showToast("התור נמחק בהצלחה");
-      
-      if (isAdmin && confirm("האם תרצי לשלוח הודעת ביטול בווטסאפ?")) {
-        const msg = `היי ${apt.name}, רציתי לעדכן שהתור שנקבע לתאריך ${apt.date} בשעה ${apt.time} בוטל. לתיאום מחדש מוזמנת ליצור קשר.`;
-        sendWhatsApp(apt.phone, msg);
-      }
-    } catch (e) { 
-      console.error(e);
-      showToast("שגיאה במחיקה"); 
+      showToast("התור נמחק");
+    } catch (e) {
+      showToast("שגיאה במחיקה");
     }
   };
 
@@ -141,210 +142,335 @@ export default function App() {
     try {
       const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appointments', apt.id);
       await updateDoc(docRef, { paid: !apt.paid });
-      showToast(apt.paid ? "סומן כלא שולם" : "סומן כּשולם");
-    } catch (e) { showToast("שגיאה בעדכון"); }
+      showToast(apt.paid ? "סומן כלא שולם" : "סומן כשולם ✨");
+    } catch (e) {
+      showToast("שגיאה בעדכון");
+    }
   };
 
   const { upcoming, history } = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const up = []; const hist = [];
+    const up = [];
+    const hist = [];
     appointments.forEach(apt => {
-      if (apt.date && apt.date < todayStr) hist.push(apt);
-      else up.push(apt);
+      if (apt.date >= todayStr) up.push(apt);
+      else hist.push(apt);
     });
-    return { 
-      upcoming: up.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)), 
-      history: hist.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)) 
+    return {
+      upcoming: up.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
+      history: hist.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
     };
   }, [appointments]);
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0a0a0b] flex flex-col items-center justify-center gap-4">
-      <div className="w-12 h-12 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin"></div>
-      <p className="text-[#D4AF37] font-serif tracking-widest text-xs animate-pulse uppercase">Peleg Azoulay Elite</p>
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D4AF37]"></div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0b] text-white p-4 font-sans text-right" dir="rtl">
+    <div className="min-h-screen bg-white font-sans text-right" dir="rtl">
       {/* Header */}
-      <nav className="max-w-xl mx-auto flex justify-between items-center h-20 border-b border-white/5 mb-8">
+      <header className="bg-black text-white px-4 py-6 flex justify-between items-center shadow-lg border-b border-[#D4AF37]/30 sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full border border-[#D4AF37] flex items-center justify-center text-[#D4AF37] font-serif font-bold">P</div>
-          <span className="font-serif text-sm tracking-widest font-bold gold-gradient uppercase">PELEG AZOULAY</span>
+          <div className="w-12 h-12 border-2 border-[#D4AF37] rounded-full flex items-center justify-center bg-black">
+             <Crown className="text-[#D4AF37] w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white leading-tight">PELEG AZOULAY</h1>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-[#D4AF37] font-medium">Elite Beauty Studio</p>
+          </div>
         </div>
-        <div className="flex gap-4">
-          <button onClick={() => setView('booking')} className={`text-[10px] font-bold uppercase tracking-widest ${view === 'booking' ? 'text-[#D4AF37]' : 'text-white/40'}`}>הזמנה</button>
-          <button onClick={() => setView(isAdmin ? 'admin-dashboard' : 'admin-login')} className={`text-[10px] font-bold uppercase tracking-widest ${view.includes('admin') ? 'text-[#D4AF37]' : 'text-white/40'}`}>ניהול</button>
+        
+        <div className="flex gap-2">
+          {view === 'admin-dashboard' ? (
+             <button onClick={() => setView('booking')} className="p-2 text-[#D4AF37] hover:bg-white/10 rounded-full transition-colors">
+               <LogOut className="w-6 h-6" />
+             </button>
+          ) : (
+             <button onClick={() => setView('admin-login')} className="p-2 text-[#D4AF37] hover:bg-white/10 rounded-full transition-colors">
+               <Briefcase className="w-6 h-6" />
+             </button>
+          )}
         </div>
-      </nav>
+      </header>
 
-      <main className="max-w-xl mx-auto">
-        {/* VIEW: BOOKING */}
+      <main className="max-w-md mx-auto p-5 pb-24">
+        
+        {/* Customer View */}
         {view === 'booking' && (
-          <div className="space-y-8 animate-in fade-in">
-            <div className="text-center space-y-2">
-              <h1 className="font-serif text-3xl font-bold gold-gradient uppercase">קביעת תור</h1>
-              <p className="text-white/20 text-[10px] tracking-widest uppercase">Luxury Nail Art & Care</p>
-            </div>
-            <div className="bg-[#1c1c1e] rounded-[2.5rem] p-8 border border-white/5 space-y-8 shadow-2xl">
-              <div className="space-y-4">
-                <label className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest block pr-2">1. בחירת תאריך</label>
-                <input type="date" min={new Date().toISOString().split('T')[0]} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 outline-none focus:border-[#D4AF37] text-center font-bold text-white" />
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <section className="bg-black text-white p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+              <div className="flex items-center gap-3 mb-5 relative z-10">
+                <Calendar className="text-[#D4AF37] w-6 h-6" />
+                <h2 className="text-xl font-bold">בחרי תאריך לטיפול</h2>
               </div>
-              <div className="space-y-4">
-                <label className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest block pr-2">2. בחירת שעה</label>
-                <div className="grid grid-cols-2 gap-4">
-                  {CUSTOMER_TIME_SLOTS.map(slot => {
-                    const isTaken = appointments.some(a => a.date === selectedDate && a.time === slot);
-                    return (
-                      <button key={slot} disabled={isTaken} onClick={() => setBookingModal(slot)}
-                        className={`p-5 rounded-2xl font-bold border transition-all ${isTaken ? 'opacity-10 border-white/5 grayscale cursor-not-allowed' : 'bg-white/5 border-white/10 hover:border-[#D4AF37] active:scale-95'}`}>
-                        {slot}
-                      </button>
-                    );
-                  })}
-                </div>
+              <input 
+                type="date" 
+                min={new Date().toISOString().split('T')[0]}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full p-4 rounded-2xl bg-white/10 border border-[#D4AF37]/30 text-white text-lg font-medium outline-none focus:border-[#D4AF37] transition-all"
+              />
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex items-center gap-3 px-2">
+                <Clock className="text-black w-6 h-6" />
+                <h2 className="text-xl font-extrabold">שעות זמינות</h2>
               </div>
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                {CUSTOMER_TIME_SLOTS.map(time => {
+                  const isTaken = appointments.some(a => a.date === selectedDate && a.time === time);
+                  return (
+                    <button
+                      key={time}
+                      disabled={isTaken}
+                      onClick={() => setBookingModal({ time })}
+                      className={`p-5 rounded-[1.5rem] text-center text-xl font-bold border-2 transition-all duration-300 ${
+                        isTaken 
+                        ? 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed opacity-60' 
+                        : 'bg-white border-black text-black hover:bg-black hover:text-white hover:shadow-lg active:scale-95'
+                      }`}
+                    >
+                      {time}
+                      {isTaken && <span className="block text-[10px] font-medium tracking-tighter mt-1">תפוס</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
           </div>
         )}
 
-        {/* VIEW: ADMIN LOGIN */}
+        {/* Admin Login */}
         {view === 'admin-login' && (
-          <div className="py-20 flex justify-center">
-            <form onSubmit={(e) => { e.preventDefault(); if(e.target.password.value === ADMIN_PASSWORD) { setIsAdmin(true); setView('admin-dashboard'); } else { showToast("קוד שגוי"); } }} 
-                  className="bg-[#1c1c1e] rounded-[2.5rem] p-10 border border-white/5 w-full max-w-sm space-y-6 text-center">
-              <h2 className="font-serif text-xl gold-gradient uppercase font-bold">כניסת מנהלת</h2>
-              <input name="password" type="password" placeholder="קוד גישה" className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-center outline-none focus:border-[#D4AF37] text-white" autoFocus />
-              <button type="submit" className="w-full bg-gradient-to-l from-[#BF953F] to-[#AA771C] text-black font-black py-4 rounded-xl uppercase tracking-widest shadow-lg">כניסה</button>
-            </form>
+          <div className="bg-black text-white p-10 rounded-[3rem] shadow-2xl mt-12 border border-[#D4AF37]/40 animate-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center mb-8">
+                <div className="w-20 h-20 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mb-4 border border-[#D4AF37]/30">
+                    <ShieldCheck className="text-[#D4AF37] w-10 h-10" />
+                </div>
+                <h2 className="text-2xl font-black text-center">כניסת ניהול יוקרתית</h2>
+                <p className="text-[#D4AF37] text-xs mt-1 uppercase tracking-widest">Authorized Access Only</p>
+            </div>
+            <input 
+              type="password"
+              placeholder="סיסמת גישה"
+              value={adminPassInput}
+              onChange={(e) => setAdminPassInput(e.target.value)}
+              className="w-full p-4 rounded-2xl bg-white/10 border border-[#D4AF37]/30 mb-5 focus:border-[#D4AF37] outline-none text-center text-lg"
+            />
+            <button 
+              onClick={() => {
+                if (adminPassInput === ADMIN_PASSWORD) {
+                  setIsAdmin(true);
+                  setView('admin-dashboard');
+                } else {
+                  showToast("סיסמה שגויה");
+                }
+              }}
+              className="w-full bg-[#D4AF37] text-black p-4 rounded-2xl font-black text-lg shadow-lg hover:brightness-110 active:scale-95 transition-all"
+            >
+              כניסה למערכת
+            </button>
+            <button onClick={() => setView('booking')} className="w-full mt-6 text-slate-400 text-sm font-bold">ביטול וחזרה</button>
           </div>
         )}
 
-        {/* VIEW: ADMIN DASHBOARD */}
+        {/* Admin Dashboard */}
         {view === 'admin-dashboard' && (
-          <div className="space-y-8 animate-in slide-in-from-bottom-4 pb-20">
-            <div className="flex justify-between items-center bg-[#1c1c1e] p-6 rounded-[2rem] border border-white/5">
-              <h2 className="font-serif text-2xl gold-gradient uppercase">היומן שלי</h2>
-              <div className="flex gap-3">
-                <button onClick={() => setView('history')} className="p-3 bg-white/5 rounded-xl text-white/60"><History size={22}/></button>
-                <button onClick={() => setAdminAddModal(true)} className="p-3 bg-[#D4AF37] rounded-xl text-black font-bold"><Plus size={22}/></button>
-                <button onClick={() => {setIsAdmin(false); setView('booking');}} className="p-3 bg-white/5 rounded-xl text-white/60"><LogOut size={22}/></button>
-              </div>
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-2xl font-black">ניהול סטודיו</h2>
+              <button 
+                onClick={() => setAdminAddModal(true)}
+                className="bg-black text-white px-4 py-2 rounded-full flex items-center gap-2 font-bold text-sm shadow-md"
+              >
+                <Plus className="w-4 h-4 text-[#D4AF37]" /> הוספה ידנית
+              </button>
             </div>
 
-            <div className="space-y-6">
-              {Object.entries(upcoming.reduce((acc, a) => ({...acc, [a.date]: [...(acc[a.date]||[]), a]}), {})).map(([date, items]) => (
-                <div key={date} className="space-y-4">
-                  <div className="text-[#D4AF37] text-[10px] font-bold uppercase tracking-[0.2em] pr-2">{date}</div>
-                  {items.map(apt => (
-                    <div key={apt.id} className="bg-[#1c1c1e] p-5 rounded-2xl border-r-4 border-[#D4AF37] flex justify-between items-center shadow-lg">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-3 text-white">
-                          <span className="font-black text-xl">{apt.time}</span>
-                          <span className="font-bold">{apt.name}</span>
-                          {apt.paid && <CheckCircle size={14} className="text-green-500 fill-green-500/20"/>}
+            {/* Tabs */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl">
+                <button 
+                    onClick={() => setAdminSubView('upcoming')}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${adminSubView === 'upcoming' ? 'bg-white shadow-sm text-black' : 'text-slate-500'}`}
+                >
+                    תורים קרובים ({upcoming.length})
+                </button>
+                <button 
+                    onClick={() => setAdminSubView('history')}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${adminSubView === 'history' ? 'bg-white shadow-sm text-black' : 'text-slate-500'}`}
+                >
+                    היסטוריה ({history.length})
+                </button>
+            </div>
+
+            <div className="space-y-4">
+              {(adminSubView === 'upcoming' ? upcoming : history).length === 0 ? (
+                <div className="bg-white p-12 rounded-[2rem] text-center text-slate-400 border-2 border-dashed border-slate-100">
+                  אין נתונים להצגה
+                </div>
+              ) : (
+                (adminSubView === 'upcoming' ? upcoming : history).map(apt => (
+                  <div key={apt.id} className={`bg-white p-5 rounded-[2rem] shadow-md border-r-4 ${apt.paid ? 'border-green-500' : 'border-[#D4AF37]'} flex flex-col gap-4 transition-transform active:scale-[0.98]`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-lg font-black text-black">{apt.name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            <p className="text-slate-500 text-sm font-bold">{apt.date}</p>
+                            <span className="text-slate-300">|</span>
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <p className="text-slate-500 text-sm font-bold">{apt.time}</p>
                         </div>
-                        <div className="text-xs text-white/30 flex items-center gap-1"><Phone size={10}/> {apt.phone}</div>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => togglePaid(apt)} className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors ${apt.paid ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-white/5 border-white/10 text-white/20 hover:text-white'}`}>
-                          <CreditCard size={18}/>
+                        {adminSubView === 'upcoming' && (
+                            <button 
+                            onClick={() => sendWhatsApp(apt.phone, `היי ${apt.name}, רציתי לוודא הגעה לתור שלך ביום ${apt.date} בשעה ${apt.time}`)}
+                            className="p-2.5 bg-green-50 text-green-600 rounded-full hover:bg-green-100"
+                            >
+                            <MessageCircle className="w-5 h-5" />
+                            </button>
+                        )}
+                        <button 
+                          onClick={() => deleteAppointment(apt)}
+                          className="p-2.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100"
+                        >
+                          <Trash2 className="w-5 h-5" />
                         </button>
-                        <button onClick={() => sendWhatsApp(apt.phone, `היי ${apt.name}, תזכורת לתור שלך אצל פלג אזולאי בתאריך ${apt.date} בשעה ${apt.time}.`)}
-                          className="w-10 h-10 rounded-xl bg-green-500/10 text-green-500 border border-green-500/20 flex items-center justify-center"><MessageCircle size={18}/></button>
-                        <button onClick={() => { if(confirm(`למחוק את התור של ${apt.name}?`)) deleteAppointment(apt); }} 
-                          className="w-10 h-10 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 flex items-center justify-center"><Trash2 size={18}/></button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* VIEW: HISTORY */}
-        {view === 'history' && (
-          <div className="space-y-8 animate-in slide-in-from-right-4">
-            <div className="flex items-center justify-between">
-              <button onClick={() => setView('admin-dashboard')} className="flex items-center gap-2 text-xs font-bold text-white/40"><ChevronRight size={18}/> חזרה</button>
-              <h2 className="font-serif text-xl gold-gradient uppercase">היסטוריה</h2>
-              <div className="w-10"></div>
-            </div>
-            <div className="space-y-4">
-              {history.map(apt => (
-                <div key={apt.id} className="bg-[#1c1c1e] p-5 rounded-2xl flex justify-between items-center opacity-70 border border-white/5">
-                  <div className="text-right">
-                    <div className="text-[10px] text-white/40 uppercase font-bold">{apt.date}</div>
-                    <div className="font-bold text-white/80">{apt.name} | {apt.time}</div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => togglePaid(apt)}
+                        className={`flex-1 flex items-center justify-center gap-2 p-3.5 rounded-2xl font-black text-sm transition-all ${
+                          apt.paid ? 'bg-green-600 text-white shadow-inner' : 'bg-slate-900 text-white'
+                        }`}
+                      >
+                        <CreditCard className={`w-4 h-4 ${apt.paid ? 'text-white' : 'text-[#D4AF37]'}`} />
+                        {apt.paid ? 'שולם במלואו' : 'סמן ששולם'}
+                      </button>
+                      <a 
+                        href={`tel:${apt.phone}`}
+                        className="w-14 bg-slate-100 text-black rounded-2xl flex items-center justify-center hover:bg-slate-200"
+                      >
+                        <Phone className="w-5 h-5" />
+                      </a>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => togglePaid(apt)} className={`px-4 py-2 rounded-full text-[10px] font-black border transition-all ${apt.paid ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-red-500/20 border-red-500 text-red-500'}`}>
-                      {apt.paid ? 'שולם' : 'לא שולם'}
-                    </button>
-                    <button onClick={() => deleteAppointment(apt)} className="text-white/10 hover:text-red-500"><Trash2 size={18}/></button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
       </main>
 
-      {/* MODAL: CLIENT FORM */}
+      {/* Booking Modal (Customer) */}
       {bookingModal && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-xl">
-          <div className="bg-[#1c1c1e] w-full max-w-sm rounded-[3rem] p-10 border border-white/10 space-y-8 animate-in zoom-in-95">
-            <div className="text-center space-y-2">
-              <h3 className="font-serif text-2xl gold-gradient uppercase">אישור תור</h3>
-              <p className="text-white/40 text-xs font-bold">{selectedDate} בשעה {bookingModal}</p>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-md rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500">
+            <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black">הזמנת תור יוקרתית</h3>
+              <button onClick={() => setBookingModal(null)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
             </div>
-            <div className="space-y-5">
-              <input placeholder="שם מלא" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-right outline-none focus:border-[#D4AF37] font-bold text-white" />
-              <input type="tel" placeholder="מספר טלפון" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-right outline-none focus:border-[#D4AF37] font-bold text-white" />
-            </div>
-            <button onClick={() => handleBooking(false)} className="w-full bg-gradient-to-l from-[#BF953F] to-[#AA771C] text-black font-black py-5 rounded-2xl uppercase tracking-widest shadow-xl active:scale-95 transition-all">אישור ושליחת ווטסאפ</button>
-            <button onClick={() => setBookingModal(null)} className="w-full text-white/20 text-xs font-bold uppercase">ביטול</button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: ADMIN MANUAL ADD */}
-      {adminAddModal && (
-        <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-6 backdrop-blur-xl">
-          <div className="bg-[#1c1c1e] w-full max-w-sm rounded-[3rem] p-10 border border-[#D4AF37]/30 space-y-6 relative animate-in zoom-in-95">
-            <button onClick={() => setAdminAddModal(false)} className="absolute top-8 left-8 text-white/30"><X size={24}/></button>
-            <h3 className="text-center font-serif text-2xl gold-gradient uppercase">הוספת תור ידני</h3>
-            <div className="space-y-4">
-              <input placeholder="שם הלקוחה" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-right outline-none text-white" />
-              <input placeholder="טלפון" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-right outline-none text-white" />
-              <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs font-bold text-white" />
-                <select value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-xs appearance-none font-bold text-white">
-                  {ADMIN_TIME_SLOTS.map(t => <option key={t} value={t} className="bg-[#1c1c1e]">{t}</option>)}
-                </select>
+            <div className="mb-8 p-5 bg-black text-white rounded-[2rem] flex justify-between items-center border border-[#D4AF37]/40 shadow-xl">
+              <div className="text-right">
+                <span className="text-xs text-[#D4AF37] uppercase tracking-widest font-bold">מועד הטיפול</span>
+                <span className="text-xl font-black block">{selectedDate}</span>
+              </div>
+              <div className="text-left">
+                <span className="text-xs text-[#D4AF37] uppercase tracking-widest font-bold">שעה</span>
+                <span className="text-xl font-black block">{bookingModal.time}</span>
               </div>
             </div>
-            <button onClick={() => handleBooking(true)} className="w-full bg-[#D4AF37] text-black font-black py-5 rounded-2xl uppercase tracking-widest active:scale-95 transition-all">שמירה ושליחת ווטסאפ</button>
+            <div className="space-y-5">
+              <div className="relative">
+                <User className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input 
+                  placeholder="שם מלא"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="w-full p-4 pr-12 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-black outline-none transition-all font-bold"
+                />
+              </div>
+              <div className="relative">
+                <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input 
+                  type="tel"
+                  placeholder="מספר טלפון"
+                  value={formData.phone}
+                  onChange={e => setFormData({...formData, phone: e.target.value})}
+                  className="w-full p-4 pr-12 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-black outline-none transition-all font-bold"
+                />
+              </div>
+              <button 
+                onClick={() => handleBooking(false)}
+                className="w-full bg-[#D4AF37] text-black p-5 rounded-2xl font-black text-xl shadow-xl hover:brightness-110 active:scale-95 transition-all mt-4 border-b-4 border-[#A6892C]"
+              >
+                לחצי לאישור התור ✨
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TOAST Notification */}
-      {toast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white text-black px-8 py-4 rounded-full font-black text-xs z-[200] shadow-2xl animate-in slide-in-from-bottom-4">
-          {toast}
+      {/* Admin Add Modal */}
+      {adminAddModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black">הוספת תור ידנית</h3>
+              <button onClick={() => setAdminAddModal(false)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
+            </div>
+            <div className="space-y-4">
+              <input 
+                type="date"
+                value={formData.date}
+                onChange={e => setFormData({...formData, date: e.target.value})}
+                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold"
+              />
+              <select 
+                value={formData.time}
+                onChange={e => setFormData({...formData, time: e.target.value})}
+                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold outline-none"
+              >
+                {ADMIN_TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input 
+                placeholder="שם הלקוחה"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold"
+              />
+              <input 
+                placeholder="טלפון"
+                value={formData.phone}
+                onChange={e => setFormData({...formData, phone: e.target.value})}
+                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold"
+              />
+              <button 
+                onClick={() => handleBooking(true)}
+                className="w-full bg-black text-white p-5 rounded-2xl font-black text-lg mt-4"
+              >
+                הוסף ליומן
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      <style>{`
-        .gold-gradient { background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; }
-        ::-webkit-scrollbar { width: 0; background: transparent; }
-      `}</style>
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-black text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 border border-[#D4AF37]/50">
+          <CheckCircle className="w-5 h-5 text-[#D4AF37]" />
+          <span className="font-bold">{toast}</span>
+        </div>
+      )}
+
     </div>
   );
 }
