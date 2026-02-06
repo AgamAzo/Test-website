@@ -1,477 +1,244 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, collection, doc, setDoc, onSnapshot, 
-  deleteDoc, updateDoc, query 
-} from 'firebase/firestore';
-import { 
-  getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken 
-} from 'firebase/auth';
-import { 
-  Calendar, Clock, Trash2, CheckCircle, XCircle, 
-  History, Plus, Phone, LogOut, X, ChevronRight, 
-  MessageCircle, CreditCard, User, ShieldCheck, Crown, Briefcase
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PELEG AZOULAY | Elite Beauty</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@200;400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Assistant', sans-serif; background-color: #ffffff; }
+        .gold-text { color: #D4AF37; }
+        .gold-bg { background-color: #D4AF37; }
+        .gold-border { border-color: #D4AF37; }
+        .shadow-gold { shadow-color: rgba(212, 175, 55, 0.3); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 50; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+    </style>
+</head>
+<body class="bg-gray-50">
 
-// Firebase Configuration
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'peleg-elite-final-v5';
-
-// Constants
-const CUSTOMER_TIME_SLOTS = ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"];
-const generateAdminSlots = () => {
-  const slots = [];
-  for (let hour = 8; hour <= 20; hour++) {
-    slots.push(`${hour < 10 ? '0' + hour : hour}:00`);
-    slots.push(`${hour < 10 ? '0' + hour : hour}:30`);
-  }
-  slots.push("21:00");
-  return slots;
-};
-const ADMIN_TIME_SLOTS = generateAdminSlots();
-const ADMIN_PASSWORD = "PelegAzoulayAgamAzoulay";
-
-// Theme Colors
-const goldColor = "#D4AF37";
-
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [view, setView] = useState('booking'); // 'booking', 'admin-login', 'admin-dashboard'
-  const [adminSubView, setAdminSubView] = useState('upcoming'); // 'upcoming', 'history'
-  const [appointments, setAppointments] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [bookingModal, setBookingModal] = useState(null);
-  const [adminAddModal, setAdminAddModal] = useState(false);
-  const [formData, setFormData] = useState({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '17:00' });
-  const [toast, setToast] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [adminPassInput, setAdminPassInput] = useState('');
-
-  // Authentication
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.error("Auth error:", err);
-      }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Real-time Sync
-  useEffect(() => {
-    if (!user) return;
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setAppointments(data);
-    }, (err) => {
-      console.error("Data fetch error:", err);
-    });
-    return () => unsubscribe();
-  }, [user]);
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const sendWhatsApp = (phone, message) => {
-    if (!phone) return;
-    const cleanPhone = phone.replace(/\D/g, '');
-    const finalPhone = cleanPhone.startsWith('0') ? '972' + cleanPhone.substring(1) : cleanPhone;
-    const url = `https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
-  };
-
-  const handleBooking = async (isManual = false) => {
-    const { name, phone } = formData;
-    const date = isManual ? formData.date : selectedDate;
-    const time = isManual ? formData.time : bookingModal.time;
-
-    if (!name || !phone) return showToast("נא למלא שם וטלפון");
-
-    const docId = `APT_${date}_${time.replace(':', '')}_${Date.now()}`;
-    
-    try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', docId), {
-        name, phone, date, time, paid: false, createdAt: Date.now()
-      });
-      
-      showToast("התור נרשם בהצלחה! ✨");
-      const msg = `היי ${name}, נקבע לך תור אצל פלג אזולאי בתאריך ${date} בשעה ${time}. מחכה לך!`;
-      
-      setTimeout(() => sendWhatsApp(phone, msg), 500);
-      
-      setBookingModal(null);
-      setAdminAddModal(false);
-      setFormData({ name: '', phone: '', date: new Date().toISOString().split('T')[0], time: '17:00' });
-    } catch (e) {
-      showToast("שגיאה בשמירה");
-    }
-  };
-
-  const deleteAppointment = async (apt) => {
-    if (!isAdmin) return;
-    if (!confirm(`האם למחוק את התור של ${apt.name}?`)) return;
-
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appointments', apt.id);
-      await deleteDoc(docRef);
-      showToast("התור נמחק");
-    } catch (e) {
-      showToast("שגיאה במחיקה");
-    }
-  };
-
-  const togglePaid = async (apt) => {
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appointments', apt.id);
-      await updateDoc(docRef, { paid: !apt.paid });
-      showToast(apt.paid ? "סומן כלא שולם" : "סומן כשולם ✨");
-    } catch (e) {
-      showToast("שגיאה בעדכון");
-    }
-  };
-
-  const { upcoming, history } = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const up = [];
-    const hist = [];
-    appointments.forEach(apt => {
-      if (apt.date >= todayStr) up.push(apt);
-      else hist.push(apt);
-    });
-    return {
-      upcoming: up.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
-      history: hist.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
-    };
-  }, [appointments]);
-
-  if (loading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D4AF37]"></div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-white font-sans text-right" dir="rtl">
-      {/* Header */}
-      <header className="bg-black text-white px-4 py-6 flex justify-between items-center shadow-lg border-b border-[#D4AF37]/30 sticky top-0 z-40">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 border-2 border-[#D4AF37] rounded-full flex items-center justify-center bg-black">
-             <Crown className="text-[#D4AF37] w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white leading-tight">PELEG AZOULAY</h1>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-[#D4AF37] font-medium">Elite Beauty Studio</p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          {view === 'admin-dashboard' ? (
-             <button onClick={() => setView('booking')} className="p-2 text-[#D4AF37] hover:bg-white/10 rounded-full transition-colors">
-               <LogOut className="w-6 h-6" />
-             </button>
-          ) : (
-             <button onClick={() => setView('admin-login')} className="p-2 text-[#D4AF37] hover:bg-white/10 rounded-full transition-colors">
-               <Briefcase className="w-6 h-6" />
-             </button>
-          )}
-        </div>
-      </header>
-
-      <main className="max-w-md mx-auto p-5 pb-24">
-        
-        {/* Customer View */}
-        {view === 'booking' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <section className="bg-black text-white p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-              <div className="flex items-center gap-3 mb-5 relative z-10">
-                <Calendar className="text-[#D4AF37] w-6 h-6" />
-                <h2 className="text-xl font-bold">בחרי תאריך לטיפול</h2>
-              </div>
-              <input 
-                type="date" 
-                min={new Date().toISOString().split('T')[0]}
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-white/10 border border-[#D4AF37]/30 text-white text-lg font-medium outline-none focus:border-[#D4AF37] transition-all"
-              />
-            </section>
-
-            <section className="space-y-4">
-              <div className="flex items-center gap-3 px-2">
-                <Clock className="text-black w-6 h-6" />
-                <h2 className="text-xl font-extrabold">שעות זמינות</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {CUSTOMER_TIME_SLOTS.map(time => {
-                  const isTaken = appointments.some(a => a.date === selectedDate && a.time === time);
-                  return (
-                    <button
-                      key={time}
-                      disabled={isTaken}
-                      onClick={() => setBookingModal({ time })}
-                      className={`p-5 rounded-[1.5rem] text-center text-xl font-bold border-2 transition-all duration-300 ${
-                        isTaken 
-                        ? 'bg-slate-100 border-slate-100 text-slate-300 cursor-not-allowed opacity-60' 
-                        : 'bg-white border-black text-black hover:bg-black hover:text-white hover:shadow-lg active:scale-95'
-                      }`}
-                    >
-                      {time}
-                      {isTaken && <span className="block text-[10px] font-medium tracking-tighter mt-1">תפוס</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* Admin Login */}
-        {view === 'admin-login' && (
-          <div className="bg-black text-white p-10 rounded-[3rem] shadow-2xl mt-12 border border-[#D4AF37]/40 animate-in zoom-in-95 duration-300">
-            <div className="flex flex-col items-center mb-8">
-                <div className="w-20 h-20 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mb-4 border border-[#D4AF37]/30">
-                    <ShieldCheck className="text-[#D4AF37] w-10 h-10" />
+    <!-- Header -->
+    <header class="bg-black text-white p-4 sticky top-0 z-40 shadow-xl border-b border-[#D4AF37]">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 border-2 border-[#D4AF37] rounded-full flex items-center justify-center bg-black">
+                    <span class="text-[#D4AF37] text-2xl">👑</span>
                 </div>
-                <h2 className="text-2xl font-black text-center">כניסת ניהול יוקרתית</h2>
-                <p className="text-[#D4AF37] text-xs mt-1 uppercase tracking-widest">Authorized Access Only</p>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight">PELEG AZOULAY</h1>
+                    <p class="text-[10px] uppercase tracking-[0.2em] text-[#D4AF37]">Elite Beauty Studio</p>
+                </div>
             </div>
-            <input 
-              type="password"
-              placeholder="סיסמת גישה"
-              value={adminPassInput}
-              onChange={(e) => setAdminPassInput(e.target.value)}
-              className="w-full p-4 rounded-2xl bg-white/10 border border-[#D4AF37]/30 mb-5 focus:border-[#D4AF37] outline-none text-center text-lg"
-            />
-            <button 
-              onClick={() => {
-                if (adminPassInput === ADMIN_PASSWORD) {
-                  setIsAdmin(true);
-                  setView('admin-dashboard');
-                } else {
-                  showToast("סיסמה שגויה");
-                }
-              }}
-              className="w-full bg-[#D4AF37] text-black p-4 rounded-2xl font-black text-lg shadow-lg hover:brightness-110 active:scale-95 transition-all"
-            >
-              כניסה למערכת
+            <button onclick="showAdminLogin()" class="p-2 text-[#D4AF37] hover:bg-white/10 rounded-full">
+                <span id="admin-icon" class="text-xl">💼</span>
             </button>
-            <button onClick={() => setView('booking')} className="w-full mt-6 text-slate-400 text-sm font-bold">ביטול וחזרה</button>
-          </div>
-        )}
+        </div>
+    </header>
 
-        {/* Admin Dashboard */}
-        {view === 'admin-dashboard' && (
-          <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-2xl font-black">ניהול סטודיו</h2>
-              <button 
-                onClick={() => setAdminAddModal(true)}
-                className="bg-black text-white px-4 py-2 rounded-full flex items-center gap-2 font-bold text-sm shadow-md"
-              >
-                <Plus className="w-4 h-4 text-[#D4AF37]" /> הוספה ידנית
-              </button>
+    <main class="max-w-md mx-auto p-4 pb-24">
+        
+        <!-- View: Booking (Customer) -->
+        <div id="booking-view" class="space-y-6">
+            <div class="bg-black text-white p-6 rounded-[2rem] shadow-2xl border border-[#D4AF37]/30">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span>📅</span> בחרי תאריך
+                </h2>
+                <input type="date" id="date-picker" onchange="updateSlots()" class="w-full p-4 rounded-xl bg-white/10 border border-[#D4AF37]/30 text-white outline-none focus:border-[#D4AF37]">
             </div>
 
-            {/* Tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl">
-                <button 
-                    onClick={() => setAdminSubView('upcoming')}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${adminSubView === 'upcoming' ? 'bg-white shadow-sm text-black' : 'text-slate-500'}`}
-                >
-                    תורים קרובים ({upcoming.length})
-                </button>
-                <button 
-                    onClick={() => setAdminSubView('history')}
-                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${adminSubView === 'history' ? 'bg-white shadow-sm text-black' : 'text-slate-500'}`}
-                >
-                    היסטוריה ({history.length})
-                </button>
-            </div>
-
-            <div className="space-y-4">
-              {(adminSubView === 'upcoming' ? upcoming : history).length === 0 ? (
-                <div className="bg-white p-12 rounded-[2rem] text-center text-slate-400 border-2 border-dashed border-slate-100">
-                  אין נתונים להצגה
+            <div class="space-y-4">
+                <h2 class="text-xl font-extrabold flex items-center gap-2">
+                    <span>🕒</span> שעות פנויות
+                </h2>
+                <div id="slots-grid" class="grid grid-cols-2 gap-3">
+                    <!-- Slots will be injected here -->
                 </div>
-              ) : (
-                (adminSubView === 'upcoming' ? upcoming : history).map(apt => (
-                  <div key={apt.id} className={`bg-white p-5 rounded-[2rem] shadow-md border-r-4 ${apt.paid ? 'border-green-500' : 'border-[#D4AF37]'} flex flex-col gap-4 transition-transform active:scale-[0.98]`}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-lg font-black text-black">{apt.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                            <Calendar className="w-3 h-3 text-slate-400" />
-                            <p className="text-slate-500 text-sm font-bold">{apt.date}</p>
-                            <span className="text-slate-300">|</span>
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <p className="text-slate-500 text-sm font-bold">{apt.time}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {adminSubView === 'upcoming' && (
-                            <button 
-                            onClick={() => sendWhatsApp(apt.phone, `היי ${apt.name}, רציתי לוודא הגעה לתור שלך ביום ${apt.date} בשעה ${apt.time}`)}
-                            className="p-2.5 bg-green-50 text-green-600 rounded-full hover:bg-green-100"
-                            >
-                            <MessageCircle className="w-5 h-5" />
-                            </button>
-                        )}
-                        <button 
-                          onClick={() => deleteAppointment(apt)}
-                          className="p-2.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => togglePaid(apt)}
-                        className={`flex-1 flex items-center justify-center gap-2 p-3.5 rounded-2xl font-black text-sm transition-all ${
-                          apt.paid ? 'bg-green-600 text-white shadow-inner' : 'bg-slate-900 text-white'
-                        }`}
-                      >
-                        <CreditCard className={`w-4 h-4 ${apt.paid ? 'text-white' : 'text-[#D4AF37]'}`} />
-                        {apt.paid ? 'שולם במלואו' : 'סמן ששולם'}
-                      </button>
-                      <a 
-                        href={`tel:${apt.phone}`}
-                        className="w-14 bg-slate-100 text-black rounded-2xl flex items-center justify-center hover:bg-slate-200"
-                      >
-                        <Phone className="w-5 h-5" />
-                      </a>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
-          </div>
-        )}
-      </main>
-
-      {/* Booking Modal (Customer) */}
-      {bookingModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white w-full max-w-md rounded-t-[3rem] sm:rounded-[3rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500">
-            <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black">הזמנת תור יוקרתית</h3>
-              <button onClick={() => setBookingModal(null)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
-            </div>
-            <div className="mb-8 p-5 bg-black text-white rounded-[2rem] flex justify-between items-center border border-[#D4AF37]/40 shadow-xl">
-              <div className="text-right">
-                <span className="text-xs text-[#D4AF37] uppercase tracking-widest font-bold">מועד הטיפול</span>
-                <span className="text-xl font-black block">{selectedDate}</span>
-              </div>
-              <div className="text-left">
-                <span className="text-xs text-[#D4AF37] uppercase tracking-widest font-bold">שעה</span>
-                <span className="text-xl font-black block">{bookingModal.time}</span>
-              </div>
-            </div>
-            <div className="space-y-5">
-              <div className="relative">
-                <User className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <input 
-                  placeholder="שם מלא"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="w-full p-4 pr-12 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-black outline-none transition-all font-bold"
-                />
-              </div>
-              <div className="relative">
-                <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <input 
-                  type="tel"
-                  placeholder="מספר טלפון"
-                  value={formData.phone}
-                  onChange={e => setFormData({...formData, phone: e.target.value})}
-                  className="w-full p-4 pr-12 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-black outline-none transition-all font-bold"
-                />
-              </div>
-              <button 
-                onClick={() => handleBooking(false)}
-                className="w-full bg-[#D4AF37] text-black p-5 rounded-2xl font-black text-xl shadow-xl hover:brightness-110 active:scale-95 transition-all mt-4 border-b-4 border-[#A6892C]"
-              >
-                לחצי לאישור התור ✨
-              </button>
-            </div>
-          </div>
         </div>
-      )}
 
-      {/* Admin Add Modal */}
-      {adminAddModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-black">הוספת תור ידנית</h3>
-              <button onClick={() => setAdminAddModal(false)} className="p-2 bg-slate-100 rounded-full"><X className="w-5 h-5"/></button>
+        <!-- View: Admin Dashboard -->
+        <div id="admin-view" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-black">ניהול סטודיו</h2>
+                <button onclick="logout()" class="text-red-500 font-bold">התנתק</button>
             </div>
-            <div className="space-y-4">
-              <input 
-                type="date"
-                value={formData.date}
-                onChange={e => setFormData({...formData, date: e.target.value})}
-                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold"
-              />
-              <select 
-                value={formData.time}
-                onChange={e => setFormData({...formData, time: e.target.value})}
-                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold outline-none"
-              >
-                {ADMIN_TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <input 
-                placeholder="שם הלקוחה"
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold"
-              />
-              <input 
-                placeholder="טלפון"
-                value={formData.phone}
-                onChange={e => setFormData({...formData, phone: e.target.value})}
-                className="w-full p-4 rounded-2xl bg-slate-100 border-none font-bold"
-              />
-              <button 
-                onClick={() => handleBooking(true)}
-                className="w-full bg-black text-white p-5 rounded-2xl font-black text-lg mt-4"
-              >
-                הוסף ליומן
-              </button>
+
+            <div class="flex bg-gray-200 p-1 rounded-xl">
+                <button onclick="setAdminTab('upcoming')" id="tab-up" class="flex-1 py-2 rounded-lg font-bold bg-white shadow">קרובים</button>
+                <button onclick="setAdminTab('history')" id="tab-hist" class="flex-1 py-2 rounded-lg font-bold text-gray-500">היסטוריה</button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-black text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 border border-[#D4AF37]/50">
-          <CheckCircle className="w-5 h-5 text-[#D4AF37]" />
-          <span className="font-bold">{toast}</span>
+            <div id="appointments-list" class="space-y-4">
+                <!-- Appointments will be injected here -->
+            </div>
         </div>
-      )}
+    </main>
 
+    <!-- Modal: Booking -->
+    <div id="booking-modal" class="modal px-4">
+        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 animate-bounce-in">
+            <h3 class="text-2xl font-black mb-2">פרטי התור</h3>
+            <p id="selected-info" class="text-[#D4AF37] font-bold mb-6"></p>
+            <div class="space-y-4">
+                <input type="text" id="cust-name" placeholder="שם מלא" class="w-full p-4 bg-gray-100 rounded-xl outline-none border-2 border-transparent focus:border-black">
+                <input type="tel" id="cust-phone" placeholder="מספר טלפון" class="w-full p-4 bg-gray-100 rounded-xl outline-none border-2 border-transparent focus:border-black">
+                <button onclick="confirmBooking()" class="w-full bg-[#D4AF37] text-black p-4 rounded-xl font-black text-lg shadow-lg active:scale-95 transition-all">אשרי לי תור ✨</button>
+                <button onclick="closeModals()" class="w-full text-gray-400 text-sm">ביטול</button>
+            </div>
+        </div>
     </div>
-  );
-}
+
+    <!-- Modal: Admin Login -->
+    <div id="login-modal" class="modal px-4">
+        <div class="bg-black text-white w-full max-w-sm rounded-[2.5rem] p-8 border border-[#D4AF37]">
+            <h3 class="text-2xl font-black mb-6 text-center text-[#D4AF37]">כניסת מנהל</h3>
+            <input type="password" id="admin-pass" placeholder="סיסמה" class="w-full p-4 bg-white/10 rounded-xl outline-none border border-[#D4AF37]/30 mb-4 text-center">
+            <button onclick="login()" class="w-full bg-[#D4AF37] text-black p-4 rounded-xl font-black active:scale-95 transition-all">כניסה</button>
+            <button onclick="closeModals()" class="w-full mt-4 text-gray-500">חזרה</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'peleg-studio';
+
+        let appointments = [];
+        let currentAdminTab = 'upcoming';
+        let selectedSlot = { date: '', time: '' };
+
+        // Auth
+        signInAnonymously(auth).catch(console.error);
+
+        // Date init
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date-picker').value = today;
+        document.getElementById('date-picker').min = today;
+
+        // Listen to data
+        const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'appointments');
+        onSnapshot(colRef, (snapshot) => {
+            appointments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            updateSlots();
+            renderAdmin();
+        });
+
+        // Global functions
+        window.updateSlots = () => {
+            const date = document.getElementById('date-picker').value;
+            const grid = document.getElementById('slots-grid');
+            const slots = ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"];
+            
+            grid.innerHTML = slots.map(time => {
+                const isTaken = appointments.some(a => a.date === date && a.time === time);
+                return `
+                    <button ${isTaken ? 'disabled' : `onclick="openBooking('${date}', '${time}')"`} 
+                        class="p-5 rounded-2xl text-xl font-bold border-2 transition-all ${isTaken ? 'bg-gray-100 text-gray-300 border-gray-100' : 'bg-white border-black hover:bg-black hover:text-white'}">
+                        ${time}
+                        ${isTaken ? '<span class="block text-[10px]">תפוס</span>' : ''}
+                    </button>
+                `;
+            }).join('');
+        };
+
+        window.openBooking = (date, time) => {
+            selectedSlot = { date, time };
+            document.getElementById('selected-info').innerText = `${date} בשעה ${time}`;
+            document.getElementById('booking-modal').classList.add('active');
+        };
+
+        window.confirmBooking = async () => {
+            const name = document.getElementById('cust-name').value;
+            const phone = document.getElementById('cust-phone').value;
+            if(!name || !phone) return alert("נא למלא את כל הפרטים");
+
+            const id = `APT_${Date.now()}`;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id), {
+                name, phone, date: selectedSlot.date, time: selectedSlot.time, paid: false
+            });
+
+            const msg = `היי ${name}, נקבע לך תור לפלג אזולאי ב-${selectedSlot.date} שעה ${selectedSlot.time}. מחכה לך!`;
+            window.open(`https://api.whatsapp.com/send?phone=972${phone.substring(1)}&text=${encodeURIComponent(msg)}`);
+            
+            closeModals();
+            alert("התור נקבע בהצלחה!");
+        };
+
+        window.renderAdmin = () => {
+            const list = document.getElementById('appointments-list');
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            const filtered = appointments.filter(a => 
+                currentAdminTab === 'upcoming' ? a.date >= todayStr : a.date < todayStr
+            ).sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+
+            list.innerHTML = filtered.length ? filtered.map(a => `
+                <div class="bg-white p-4 rounded-2xl shadow-md border-r-4 ${a.paid ? 'border-green-500' : 'border-[#D4AF37]'}">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-black text-lg">${a.name}</h4>
+                            <p class="text-sm text-gray-500 font-bold">${a.date} | ${a.time}</p>
+                        </div>
+                        <button onclick="deleteApt('${a.id}')" class="text-red-500">🗑️</button>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="togglePaid('${a.id}', ${a.paid})" class="flex-1 py-2 rounded-xl text-xs font-bold ${a.paid ? 'bg-green-100 text-green-700' : 'bg-black text-white'}">
+                            ${a.paid ? 'שולם ✨' : 'סמן ששולם'}
+                        </button>
+                        <a href="tel:${a.phone}" class="p-2 bg-gray-100 rounded-xl">📞</a>
+                    </div>
+                </div>
+            `).join('') : '<p class="text-center text-gray-400">אין תורים להצגה</p>';
+        };
+
+        window.deleteApt = async (id) => {
+            if(confirm("למחוק את התור?")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id));
+        };
+
+        window.togglePaid = async (id, current) => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'appointments', id), { paid: !current });
+        };
+
+        window.setAdminTab = (tab) => {
+            currentAdminTab = tab;
+            document.getElementById('tab-up').className = `flex-1 py-2 rounded-lg font-bold ${tab === 'upcoming' ? 'bg-white shadow' : 'text-gray-500'}`;
+            document.getElementById('tab-hist').className = `flex-1 py-2 rounded-lg font-bold ${tab === 'history' ? 'bg-white shadow' : 'text-gray-500'}`;
+            renderAdmin();
+        };
+
+        window.showAdminLogin = () => document.getElementById('login-modal').classList.add('active');
+        window.closeModals = () => {
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+        };
+
+        window.login = () => {
+            const pass = document.getElementById('admin-pass').value;
+            if(pass === "PelegAzoulayAgamAzoulay") {
+                document.getElementById('booking-view').classList.add('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
+                closeModals();
+            } else {
+                alert("סיסמה שגויה");
+            }
+        };
+
+        window.logout = () => {
+            document.getElementById('booking-view').classList.remove('hidden');
+            document.getElementById('admin-view').classList.add('hidden');
+        };
+
+        // Initial update
+        setTimeout(updateSlots, 500);
+
+    </script>
+</body>
+</html>
 
